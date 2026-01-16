@@ -14,6 +14,10 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - OTEL_EXPORTER_ZIPKIN_ENDPOINT=http://host.docker.internal:9411/api/v2/spans # Zipkin
       - BASE_PATH
+      - EPIC_CLIENT_ID
+      - EPIC_CLIENT_SECRET
+      - EPIC_DEPLOYMENT_ID
+      - EPIC_BASE_URL
     extra_hosts:
       - host.docker.internal:host-gateway
     # logging:
