@@ -6,10 +6,26 @@
 		<ImplicitUsings>disable</ImplicitUsings>
 		<AssemblyName>AccelByte.Extend.SimpleEOSMatchmaking.Server</AssemblyName>
 		<RootNamespace>AccelByte.Extend.SimpleEOSMatchmaking.Server</RootNamespace>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<!-- EOS SDK Platform Definitions -->
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('Windows')))">
+		<DefineConstants>$(DefineConstants);EOS_PLATFORM_WINDOWS_64</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64' OR '$(RuntimeIdentifier)' == 'linux-musl-x64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('Linux')))">
+		<DefineConstants>$(DefineConstants);EOS_PLATFORM_LINUX_64</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm64' OR '$(RuntimeIdentifier)' == 'linux-musl-arm64'">
+		<DefineConstants>$(DefineConstants);EOS_PLATFORM_LINUX_ARM64</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64' OR '$(RuntimeIdentifier)' == 'osx-arm64' OR ('$(RuntimeIdentifier)' == '' AND $([MSBuild]::IsOSPlatform('OSX')))">
+		<DefineConstants>$(DefineConstants);EOS_PLATFORM_MACOS</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="AccelByte.Sdk" Version="0.77.0" />
+		<PackageReference Include="DotNetEnv" Version="3.1.1" />
 		<PackageReference Include="Grpc.AspNetCore" Version="2.63.0" />
 		<PackageReference Include="Grpc.AspNetCore.HealthChecks" Version="2.63.0" />
 		<PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.63.0" />
@@ -34,6 +50,20 @@
 	<ItemGroup>
 		<Protobuf Include="Protos\*.proto" GrpcServices="Server" AdditionalImportDirs="Protos\" />
 		<Protobuf Include="Protos\**\*.proto" GrpcServices="Server" AdditionalImportDirs="Protos\" />
+	</ItemGroup>
+
+	<!-- EOS SDK Integration -->
+	<ItemGroup>
+		<!-- Include EOS SDK C# source files -->
+		<Compile Include="..\..\EOS-SDK\Source\**\*.cs" LinkBase="EOS-SDK" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Copy native EOS SDK libraries to output directory -->
+		<None Include="..\..\EOS-SDK\Bin\EOSSDK-Win64-Shipping.dll" CopyToOutputDirectory="PreserveNewest" Condition="'$(RuntimeIdentifier)' == '' OR '$(RuntimeIdentifier)' == 'win-x64'" />
+		<None Include="..\..\EOS-SDK\Bin\libEOSSDK-Linux-Shipping.so" CopyToOutputDirectory="PreserveNewest" Condition="'$(RuntimeIdentifier)' == 'linux-x64' OR '$(RuntimeIdentifier)' == 'linux-musl-x64'" />
+		<None Include="..\..\EOS-SDK\Bin\libEOSSDK-LinuxArm64-Shipping.so" CopyToOutputDirectory="PreserveNewest" Condition="'$(RuntimeIdentifier)' == 'linux-arm64' OR '$(RuntimeIdentifier)' == 'linux-musl-arm64'" />
+		<None Include="..\..\EOS-SDK\Bin\libEOSSDK-Mac-Shipping.dylib" CopyToOutputDirectory="PreserveNewest" Condition="'$(RuntimeIdentifier)' == 'osx-x64' OR '$(RuntimeIdentifier)' == 'osx-arm64'" />
 	</ItemGroup>
 
 </Project>

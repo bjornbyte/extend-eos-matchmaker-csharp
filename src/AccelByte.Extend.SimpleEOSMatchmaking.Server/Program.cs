@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 
 using Microsoft.AspNetCore.Builder;
@@ -19,6 +20,7 @@ using OpenTelemetry.Extensions.Propagators;
 
 using Prometheus;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Services;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
 {
@@ -26,6 +28,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
     {
         public static int Main(string[] args)
         {
+            // Load .env file if it exists - try multiple locations
+            string[] possibleEnvPaths = new[]
+            {
+                Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+                Path.Combine(AppContext.BaseDirectory, ".env"),
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".env")
+            };
+
+            foreach (var envPath in possibleEnvPaths)
+            {
+                if (File.Exists(envPath))
+                {
+                    DotNetEnv.Env.Load(envPath);
+                    Console.WriteLine($"Loaded .env file from: {envPath}");
+                    break;
+                }
+            }
+
             OpenTelemetry.Sdk.SetDefaultTextMapPropagator(new B3Propagator());
 
             string? appServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME");
@@ -57,6 +77,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
 
             builder.Services
                 .AddSingleton<IAccelByteServiceProvider, DefaultAccelByteServiceProvider>()
+                .Configure<EOSConfig>(builder.Configuration.GetSection("EOS"))
+                .AddSingleton<EOSSDKService>()
+                .AddHostedService(sp => sp.GetRequiredService<EOSSDKService>())
                 .AddOpenTelemetry()
                 .WithTracing((traceConfig) =>
                 {

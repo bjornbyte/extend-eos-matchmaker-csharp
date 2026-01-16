@@ -190,6 +190,11 @@ To be able to run this app, you will need to follow these setup steps.
    AB_NAMESPACE='xxxxxxxxxx'                 # Namespace ID from the Prerequisites section
    PLUGIN_GRPC_SERVER_AUTH_ENABLED=true      # Enable or disable access token and permission validation
    BASE_PATH='/guild'                        # The base path used for the app
+   EOS_PRODUCT_ID='xxxxxxxxxx'               # EOS Product ID from Epic Games Developer Portal
+   EOS_SANDBOX_ID='xxxxxxxxxx'               # EOS Sandbox ID from Epic Games Developer Portal
+   EOS_DEPLOYMENT_ID='xxxxxxxxxx'            # EOS Deployment ID from Epic Games Developer Portal
+   EOS_CLIENT_ID='xxxxxxxxxx'                # EOS Client ID from Epic Games Developer Portal
+   EOS_CLIENT_SECRET='xxxxxxxxxx'            # EOS Client Secret from Epic Games Developer Portal
    ```
  
    > :exclamation: **In this app, PLUGIN_GRPC_SERVER_AUTH_ENABLED is `true` by default**: If it is set to `false`, the endpoint `permission.action` and `permission.resource`  validation will be disabled and the endpoint can be accessed without a valid access token. This option is provided for development purpose only.
@@ -212,6 +217,13 @@ To be able to run this app, you will need to follow these setup steps.
          "EnableTraceId": true,
          "EnableUserAgentInfo": true,
          "ResourceName": "EXTENDSERVICEEXTENSIONSERVICE"
+      },
+      "EOS": {
+         "ProductId": "xxxxxxxxxx",                   // EOS Product ID (env var: EOS_PRODUCT_ID)
+         "SandboxId": "xxxxxxxxxx",                   // EOS Sandbox ID (env var: EOS_SANDBOX_ID)
+         "DeploymentId": "xxxxxxxxxx",                // EOS Deployment ID (env var: EOS_DEPLOYMENT_ID)
+         "ClientId": "xxxxxxxxxx",                    // EOS Client ID (env var: EOS_CLIENT_ID)
+         "ClientSecret": "xxxxxxxxxx"                 // EOS Client Secret (env var: EOS_CLIENT_SECRET)
       }
    }
    ```

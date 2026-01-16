@@ -22,7 +22,7 @@ This implementation plan breaks down the simple matchmaking feature into discret
   - Add to solution file
   - _Requirements: All (testing infrastructure)_
 
-- [ ] 3. Add EOS SDK Package
+- [x] 3. Add EOS SDK Package
   - Add Epic Online Services SDK NuGet package to main project
   - Configure EOS SDK initialization in Program.cs or separate configuration class
   - Add EOS configuration section to appsettings.json (ProductId, SandboxId, DeploymentId, ClientId, ClientSecret)
