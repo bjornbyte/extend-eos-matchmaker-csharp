@@ -23,10 +23,10 @@
       "args": [
         "run",
         "--project",
-        "${workspaceFolder}/src/AccelByte.Extend.ServiceExtension.Server/AccelByte.Extend.ServiceExtension.Server.csproj"
+        "${workspaceFolder}/src/AccelByte.Extend.SimpleEOSMatchmaking.Server/AccelByte.Extend.SimpleEOSMatchmaking.Server.csproj"
       ],
       "options": {
-        "cwd": "${workspaceFolder}/src/AccelByte.Extend.ServiceExtension.Server",
+        "cwd": "${workspaceFolder}/src/AccelByte.Extend.SimpleEOSMatchmaking.Server",
         "env": {
           "DOTNET_ENVIRONMENT": "Development"
         }

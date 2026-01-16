@@ -119,12 +119,12 @@ RUN apk update && apk add --no-cache gcompat
 WORKDIR /project
 
 # Copy project file and restore dependencies.
-COPY src/AccelByte.Extend.ServiceExtension.Server/*.csproj .
+COPY src/AccelByte.Extend.SimpleEOSMatchmaking.Server/*.csproj .
 RUN ([ "$TARGETARCH" = "amd64" ] && echo "linux-musl-x64" || echo "linux-musl-$TARGETARCH") > /tmp/dotnet-rid
 RUN dotnet restore -r $(cat /tmp/dotnet-rid)
 
 # Copy application code.
-COPY src/AccelByte.Extend.ServiceExtension.Server .
+COPY src/AccelByte.Extend.SimpleEOSMatchmaking.Server .
 
 # Build and publish application.
 RUN dotnet publish -c Release -r $(cat /tmp/dotnet-rid) --no-restore -o /build/

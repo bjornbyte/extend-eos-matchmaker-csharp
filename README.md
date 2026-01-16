@@ -36,8 +36,8 @@ Customizing your Extend Service Extension app involves modifying the `service.pr
 ```shell
 .
 ├── src
-│   ├── AccelByte.Extend.ServiceExtension.Server
-│   │   ├── AccelByte.Extend.ServiceExtension.Server.csproj
+│   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server
+│   │   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server.csproj
 │   │   ├── Classes
 │   │   │   ├── AuthorizationInterceptor.cs   # gRPC server interceptor for access token authentication and authorization
 │   │   │   └── ...
@@ -195,7 +195,7 @@ To be able to run this app, you will need to follow these setup steps.
    > :exclamation: **In this app, PLUGIN_GRPC_SERVER_AUTH_ENABLED is `true` by default**: If it is set to `false`, the endpoint `permission.action` and `permission.resource`  validation will be disabled and the endpoint can be accessed without a valid access token. This option is provided for development purpose only.
    
    For more options, create 
-   `src/AccelByte.Extend.ServiceExtension.Server/appsettings.Development.json` 
+   `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/appsettings.Development.json` 
    and fill in the required configuration.
 
    ```json
@@ -356,3 +356,4 @@ After completing testing, the next step is to deploy your app to `AccelByte Gami
 ## Next Step
 
 Proceed by modifying this `Extend Service Extension` app template to implement your own custom logic. For more details, see [here](https://docs.accelbyte.io/gaming-services/services/extend/service-extension/customize-service-extension-app/).
+

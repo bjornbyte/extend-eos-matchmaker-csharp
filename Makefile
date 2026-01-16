@@ -75,13 +75,13 @@ ifneq ($(IS_INSIDE_DEVCONTAINER),true)
 		--env-file .env \
 		-v $(BUILD_CACHE_VOLUME):/tmp/build-cache \
 		-v $$(pwd):/data \
-		-w /data/src/AccelByte.Extend.ServiceExtension.Server \
+		-w /data/src/AccelByte.Extend.SimpleEOSMatchmaking.Server \
 		-p 6565:6565 \
 		-p 8080:8080 \
 		${DOTNET_IMAGE} \
 		dotnet run
 else
-	cd src/AccelByte.Extend.ServiceExtension.Server && dotnet run
+	cd src/AccelByte.Extend.SimpleEOSMatchmaking.Server && dotnet run
 endif
 
 run_gateway: prepare_build_cache proto

@@ -11,7 +11,7 @@ kill_services()
 
 trap 'kill_services' TERM INT
 
-./AccelByte.Extend.ServiceExtension.Server & SERVER_PID=$!
+./AccelByte.Extend.SimpleEOSMatchmaking.Server & SERVER_PID=$!
 ./grpc_gateway & GATEWAY_PID=$!
 
 if [ "$KILL_SERVICES_ONCE_STARTED" ]; then

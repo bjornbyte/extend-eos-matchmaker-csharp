@@ -1,6 +1,6 @@
 ﻿{
   "profiles": {
-    "AccelByte.Extend.ServiceExtension.Server": {
+    "AccelByte.Extend.SimpleEOSMatchmaking.Server": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": false,

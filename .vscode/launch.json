@@ -6,9 +6,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "Build: App",
-      "program": "${workspaceFolder}/src/AccelByte.Extend.ServiceExtension.Server/bin/Debug/net8.0/AccelByte.Extend.ServiceExtension.Server.dll",
+      "program": "${workspaceFolder}/src/AccelByte.Extend.SimpleEOSMatchmaking.Server/bin/Debug/net8.0/AccelByte.Extend.SimpleEOSMatchmaking.Server.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/AccelByte.Extend.ServiceExtension.Server",
+      "cwd": "${workspaceFolder}/src/AccelByte.Extend.SimpleEOSMatchmaking.Server",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",

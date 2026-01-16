@@ -4,7 +4,7 @@ set -eou pipefail
 
 shopt -s globstar
 
-PROTO_DIR="${1:-src/AccelByte.Extend.ServiceExtension.Server/Protos}"
+PROTO_DIR="${1:-src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Protos}"
 GATEWAY_DIR="${2:-gateway/pkg/pb}"
 APIDOCS_DIR="${3:-gateway/apidocs}"
 
