@@ -12,7 +12,7 @@ The easiest way to get started is using the provided Dev Container configuration
 3. Wait for the container to build and dependencies to install automatically
 4. Start developing!
 
-> :bulb: The Dev Container automatically installs .NET 8 SDK, Go 1.24, and all required dependencies.
+> :bulb: The Dev Container automatically installs .NET 8 SDK, Go (for gateway), and all required dependencies.
 
 ## GitHub Codespaces
 
@@ -32,4 +32,4 @@ You can also use this Dev Container configuration with [GitHub Codespaces](https
 5. Wait for the codespace to initialize and build
 6. Start developing in your browser or VS Code!
 
-> :bulb: GitHub Codespaces uses the same Dev Container configuration, so you'll get .NET 8 SDK, Go 1.24, and all dependencies automatically installed.
+> :bulb: GitHub Codespaces uses the same Dev Container configuration, so you'll get .NET 8 SDK, Go, and all dependencies automatically installed.
