@@ -64,3 +64,16 @@ Property tests marked with `*` in task lists are optional and can be skipped for
 - **Property tests**: Validate universal properties across randomized inputs
 - Both are complementary - unit tests catch concrete bugs, property tests verify general correctness
 - Avoid writing too many unit tests - focus on critical paths and edge cases
+
+## Task Completion Criteria
+
+**CRITICAL RULE**: A task can NEVER be considered complete if:
+1. The entire project does not build successfully (no compilation errors)
+2. All tests do not pass (no failing tests)
+
+Before marking any task as complete, you MUST:
+1. Run a full project build and verify it succeeds
+2. Run all tests and verify they all pass
+3. Fix any compilation errors or test failures before proceeding
+
+If other tasks have introduced compilation errors or test failures, you MUST fix them as part of completing your current task. The project must always be in a working state.
