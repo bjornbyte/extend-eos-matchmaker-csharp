@@ -55,8 +55,8 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - Define Match class with MatchId, Requests list, CreatedAt
     - _Requirements: 3.1_
 
-- [ ] 7. Implement Match Pool
-  - [ ] 7.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchPool.cs` with IMatchPool interface and implementation
+- [x] 7. Implement Match Pool
+  - [x] 7.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchPool.cs` with IMatchPool interface and implementation
     - Implement thread-safe in-memory storage using ConcurrentDictionary and lock
     - Implement Add, Remove, Get, GetByUserId, GetOldest, RemoveExpired, Count methods
     - Use Dictionary for O(1) lookups by request ID and user ID
@@ -71,8 +71,8 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - **Property 1: Request ID Uniqueness**
     - **Validates: Requirements 1.1**
 
-- [ ] 8. Implement Session Creator Interface
-  - [ ] 8.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/SessionCreator.cs` with ISessionCreator interface
+- [x] 8. Implement Session Creator Interface
+  - [x] 8.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/SessionCreator.cs` with ISessionCreator interface
     - Define ISessionCreator interface with CreateSessionAsync method
     - Define SessionInfo class with SessionId, RequestIds, UserIds, CreatedAt
     - Implement EOSSessionCreator that creates sessions via EOS SDK
