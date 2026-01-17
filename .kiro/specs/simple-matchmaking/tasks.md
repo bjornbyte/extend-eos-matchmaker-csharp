@@ -63,8 +63,8 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - **Property 1: Request ID Uniqueness**
     - **Validates: Requirements 1.1**
 
-- [ ] 7. Implement Session Creator Interface
-  - [ ] 7.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/SessionCreator.cs` with ISessionCreator interface
+- [x] 7. Implement Session Creator Interface
+  - [x] 7.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/SessionCreator.cs` with ISessionCreator interface
     - Define ISessionCreator interface with CreateSessionAsync method
     - Define SessionInfo class with SessionId, RequestIds, UserIds, CreatedAt
     - Implement EOSSessionCreator that creates sessions via EOS SDK
