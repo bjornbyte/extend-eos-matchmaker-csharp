@@ -44,14 +44,14 @@ This implementation plan breaks down the simple matchmaking feature into discret
   - Update `.csproj` to include proto compilation
   - _Requirements: 1.1, 1.2, 5.1, 5.2, 6.1, 6.2_
 
-- [ ] 6. Implement Match Request Data Model
-  - [ ] 6.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Model/MatchRequest.cs` with MatchRequest class and status enum
+- [x] 6. Implement Match Request Data Model
+  - [x] 6.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Model/MatchRequest.cs` with MatchRequest class and status enum
     - Define MatchRequest class with RequestId, UserId, Status, CreatedAt, MatchedAt, SessionId, Metadata
     - Define MatchRequestStatus enum (Pending, Matched, Expired, Cancelled)
     - Constructor generates unique GUID for RequestId
     - _Requirements: 1.1, 5.1_
 
-  - [ ] 6.2 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Model/Match.cs` with Match class
+  - [x] 6.2 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Model/Match.cs` with Match class
     - Define Match class with MatchId, Requests list, CreatedAt
     - _Requirements: 3.1_
 

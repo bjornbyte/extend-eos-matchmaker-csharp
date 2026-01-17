@@ -1,34 +1,39 @@
-// Copyright (c) 2025 AccelByte Inc. All Rights Reserved.
-// This is licensed software from AccelByte Inc, for limitations
-// and restrictions contact your company contract manager.
-
 using System;
 using System.Collections.Generic;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Model
 {
     /// <summary>
-    /// Status of a match request
+    /// Represents the status of a match request
     /// </summary>
     public enum MatchRequestStatus
     {
-        Pending = 0,
-        Matched = 1,
-        Expired = 2,
-        Cancelled = 3
+        Pending,
+        Matched,
+        Expired,
+        Cancelled
     }
 
     /// <summary>
-    /// Represents a player's request to be matched
+    /// Represents a matchmaking request from a user
     /// </summary>
     public class MatchRequest
     {
-        public string RequestId { get; set; } = Guid.NewGuid().ToString();
-        public string UserId { get; set; } = string.Empty;
-        public MatchRequestStatus Status { get; set; } = MatchRequestStatus.Pending;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string RequestId { get; }
+        public string UserId { get; set; }
+        public MatchRequestStatus Status { get; set; }
+        public DateTime CreatedAt { get; set; }
         public DateTime? MatchedAt { get; set; }
         public string? SessionId { get; set; }
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public Dictionary<string, string>? Metadata { get; set; }
+
+        public MatchRequest(string userId, Dictionary<string, string>? metadata = null)
+        {
+            RequestId = Guid.NewGuid().ToString();
+            UserId = userId;
+            Status = MatchRequestStatus.Pending;
+            CreatedAt = DateTime.UtcNow;
+            Metadata = metadata;
+        }
     }
 }

@@ -1,19 +1,22 @@
-// Copyright (c) 2025 AccelByte Inc. All Rights Reserved.
-// This is licensed software from AccelByte Inc, for limitations
-// and restrictions contact your company contract manager.
-
 using System;
 using System.Collections.Generic;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Model
 {
     /// <summary>
-    /// Represents a successful match of multiple match requests
+    /// Represents a completed match with multiple match requests
     /// </summary>
     public class Match
     {
-        public string MatchId { get; set; } = Guid.NewGuid().ToString();
-        public List<MatchRequest> Requests { get; set; } = new();
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string MatchId { get; }
+        public List<MatchRequest> Requests { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public Match(List<MatchRequest> requests)
+        {
+            MatchId = Guid.NewGuid().ToString();
+            Requests = requests ?? new List<MatchRequest>();
+            CreatedAt = DateTime.UtcNow;
+        }
     }
 }

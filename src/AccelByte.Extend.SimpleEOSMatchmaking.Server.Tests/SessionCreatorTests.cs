@@ -125,28 +125,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             // Arrange
             var sessionCreator = CreateSessionCreator();
             
-            var match = new Match
+            var requests = new List<MatchRequest>
             {
-                MatchId = Guid.NewGuid().ToString(),
-                CreatedAt = DateTime.UtcNow,
-                Requests = new List<MatchRequest>
-                {
-                    new MatchRequest
-                    {
-                        RequestId = Guid.NewGuid().ToString(),
-                        UserId = "user-1",
-                        Status = MatchRequestStatus.Pending,
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new MatchRequest
-                    {
-                        RequestId = Guid.NewGuid().ToString(),
-                        UserId = "user-2",
-                        Status = MatchRequestStatus.Pending,
-                        CreatedAt = DateTime.UtcNow
-                    }
-                }
+                new MatchRequest("user-1"),
+                new MatchRequest("user-2")
             };
+            var match = new Match(requests);
 
             _output.WriteLine($"Creating session for match: {match.MatchId}");
             _output.WriteLine($"Request IDs: {string.Join(", ", match.Requests.ConvertAll(r => r.RequestId))}");
@@ -187,18 +171,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             // Arrange
             var sessionCreator = CreateSessionCreator();
             
-            var match = new Match
+            var requests = new List<MatchRequest>
             {
-                MatchId = Guid.NewGuid().ToString(),
-                CreatedAt = DateTime.UtcNow,
-                Requests = new List<MatchRequest>
-                {
-                    new MatchRequest { RequestId = Guid.NewGuid().ToString(), UserId = "player-1", Status = MatchRequestStatus.Pending, CreatedAt = DateTime.UtcNow },
-                    new MatchRequest { RequestId = Guid.NewGuid().ToString(), UserId = "player-2", Status = MatchRequestStatus.Pending, CreatedAt = DateTime.UtcNow },
-                    new MatchRequest { RequestId = Guid.NewGuid().ToString(), UserId = "player-3", Status = MatchRequestStatus.Pending, CreatedAt = DateTime.UtcNow },
-                    new MatchRequest { RequestId = Guid.NewGuid().ToString(), UserId = "player-4", Status = MatchRequestStatus.Pending, CreatedAt = DateTime.UtcNow }
-                }
+                new MatchRequest("player-1"),
+                new MatchRequest("player-2"),
+                new MatchRequest("player-3"),
+                new MatchRequest("player-4")
             };
+            var match = new Match(requests);
 
             _output.WriteLine($"Creating 4-player session for match: {match.MatchId}");
 
@@ -244,11 +224,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             var eosService = new EOSSDKService(eosLogger, eosOptions);
             var sessionCreator = new EOSSessionCreator(logger, eosService);
 
-            var match = new Match
-            {
-                MatchId = Guid.NewGuid().ToString(),
-                Requests = new List<MatchRequest>()
-            };
+            var match = new Match(new List<MatchRequest>());
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(
@@ -268,11 +244,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             var eosService = new EOSSDKService(eosLogger, eosOptions);
             var sessionCreator = new EOSSessionCreator(logger, eosService);
 
-            var match = new Match
-            {
-                MatchId = Guid.NewGuid().ToString(),
-                Requests = null!
-            };
+            var match = new Match(null!);
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(
