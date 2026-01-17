@@ -116,7 +116,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             var app = builder.Build();
             app.UseGrpcMetrics();
 
-            app.MapGrpcService<MyService>();
             app.MapGrpcReflectionService();
             app.MapGrpcHealthChecksService();
             app.MapMetrics();

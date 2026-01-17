@@ -28,7 +28,7 @@ This implementation plan breaks down the simple matchmaking feature into discret
   - Add EOS configuration section to appsettings.json (ProductId, SandboxId, DeploymentId, ClientId, ClientSecret)
   - _Requirements: 4.1, 4.2_
 
-- [ ] 4. Remove Guild Progress Functionality
+- [x] 4. Remove Guild Progress Functionality
   - Delete `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MyService.cs`
   - Delete `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Model/GuildProgressData.cs`
   - Delete `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Protos/service.proto`
