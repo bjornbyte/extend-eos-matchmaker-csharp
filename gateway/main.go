@@ -78,7 +78,7 @@ func serveSwaggerUI(mux *http.ServeMux) {
 
 func serveSwaggerJSON(mux *http.ServeMux, swaggerDir string) {
 	fileHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		swagger, err := loads.Spec(filepath.Join(swaggerDir, "service.swagger.json"))
+		swagger, err := loads.Spec(filepath.Join(swaggerDir, "matchmaking.swagger.json"))
 		if err != nil {
 			http.Error(w, "Error parsing Swagger JSON file", http.StatusInternalServerError)
 			return

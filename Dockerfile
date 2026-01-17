@@ -115,24 +115,31 @@ ARG TARGETARCH
 
 RUN apk update && apk add --no-cache gcompat
 
-# Set working directory.
-WORKDIR /project
+# Set working directory to root to maintain relative paths.
+WORKDIR /build
+
+# Copy EOS SDK first.
+COPY EOS-SDK ./EOS-SDK
 
 # Copy project file and restore dependencies.
-COPY src/AccelByte.Extend.SimpleEOSMatchmaking.Server/*.csproj .
-RUN ([ "$TARGETARCH" = "amd64" ] && echo "linux-musl-x64" || echo "linux-musl-$TARGETARCH") > /tmp/dotnet-rid
-RUN dotnet restore -r $(cat /tmp/dotnet-rid)
+COPY src/AccelByte.Extend.SimpleEOSMatchmaking.Server/*.csproj ./src/AccelByte.Extend.SimpleEOSMatchmaking.Server/
+RUN ([ "$TARGETARCH" = "amd64" ] && echo "linux-x64" || echo "linux-$TARGETARCH") > /tmp/dotnet-rid && \
+    echo "Building for runtime: $(cat /tmp/dotnet-rid)"
+RUN cd src/AccelByte.Extend.SimpleEOSMatchmaking.Server && dotnet restore -r $(cat /tmp/dotnet-rid)
 
 # Copy application code.
-COPY src/AccelByte.Extend.SimpleEOSMatchmaking.Server .
+COPY src/AccelByte.Extend.SimpleEOSMatchmaking.Server ./src/AccelByte.Extend.SimpleEOSMatchmaking.Server
 
 # Build and publish application.
-RUN dotnet publish -c Release -r $(cat /tmp/dotnet-rid) --no-restore -o /build/
+RUN cd src/AccelByte.Extend.SimpleEOSMatchmaking.Server && \
+    RUNTIME_ID=$(cat /tmp/dotnet-rid) && \
+    echo "Publishing for runtime: $RUNTIME_ID" && \
+    dotnet publish -c Release -r $RUNTIME_ID --no-restore -o /output/ /p:DefineConstants="EOS_PLATFORM_LINUX"
 
 # ----------------------------------------
 # Stage 4: Runtime Container
 # ----------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine3.22
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -145,13 +152,16 @@ COPY --from=grpc-gateway-builder /output/$TARGETOS/$TARGETARCH/grpc_gateway .
 
 # Copy apidocs from stage 1.
 COPY --from=proto-builder /build/gateway/apidocs ./apidocs
-RUN rm -fv apidocs/permission.swagger.json
+RUN rm -fv apidocs/service.swagger.json
 
 # Copy gateway third party files.
 COPY gateway/third_party ./third_party
 
 # Copy server build from stage 3.
-COPY --from=grpc-server-builder /build/* .
+COPY --from=grpc-server-builder /output/* .
+
+# Verify EOS SDK library is present
+RUN ls -la /app/*.so || echo "No .so files found"
 
 # Copy entrypoint script.
 COPY wrapper.sh .

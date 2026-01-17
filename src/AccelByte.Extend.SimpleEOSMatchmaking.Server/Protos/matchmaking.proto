@@ -1,0 +1,105 @@
+syntax = "proto3";
+package matchmaking;
+
+import "google/protobuf/descriptor.proto";
+import "google/api/annotations.proto";
+import "permission.proto";
+
+option csharp_namespace = "AccelByte.Extend.SimpleEOSMatchmaking";
+option go_package = "accelbyte.net/extend/simpleeosmatchmaking";
+option java_package = "net.accelbyte.extend.simpleeosmatchmaking";
+option java_multiple_files = true;
+
+// Matchmaking service for simple player matching
+service Matchmaking {
+  // Submit a new match request
+  rpc SubmitMatchRequest(SubmitMatchRequestRequest) returns (SubmitMatchRequestResponse) {
+    option (google.api.http) = {
+      post: "/matchmaking/v1/request"
+      body: "*"
+    };
+    option (permission.resource) = "NAMESPACE:{namespace}:MATCHMAKING";
+    option (permission.action) = CREATE;
+  }
+  
+  // Get the status of a match request
+  rpc GetMatchStatus(GetMatchStatusRequest) returns (GetMatchStatusResponse) {
+    option (google.api.http) = {
+      get: "/matchmaking/v1/request/{request_id}"
+    };
+    option (permission.resource) = "NAMESPACE:{namespace}:MATCHMAKING";
+    option (permission.action) = READ;
+  }
+  
+  // Cancel a pending match request
+  rpc CancelMatchRequest(CancelMatchRequestRequest) returns (CancelMatchRequestResponse) {
+    option (google.api.http) = {
+      delete: "/matchmaking/v1/request/{request_id}"
+    };
+    option (permission.resource) = "NAMESPACE:{namespace}:MATCHMAKING";
+    option (permission.action) = DELETE;
+  }
+}
+
+// Request to submit a new match request
+message SubmitMatchRequestRequest {
+  // Optional metadata for the match request
+  map<string, string> metadata = 1;
+}
+
+// Response containing the unique request identifier
+message SubmitMatchRequestResponse {
+  // Unique identifier for the match request
+  string request_id = 1;
+}
+
+// Request to get the status of a match request
+message GetMatchStatusRequest {
+  // The unique identifier of the match request
+  string request_id = 1;
+}
+
+// Response containing the match request status and details
+message GetMatchStatusResponse {
+  // The unique identifier of the match request
+  string request_id = 1;
+  
+  // Current status of the match request
+  MatchRequestStatus status = 2;
+  
+  // EOS session ID (set if status is MATCHED)
+  string session_id = 3;
+  
+  // List of matched user IDs (set if status is MATCHED)
+  repeated string matched_user_ids = 4;
+  
+  // List of matched request IDs (set if status is MATCHED)
+  repeated string matched_request_ids = 5;
+}
+
+// Status of a match request
+enum MatchRequestStatus {
+  // Request is pending and waiting for a match
+  PENDING = 0;
+  
+  // Request has been matched with other players
+  MATCHED = 1;
+  
+  // Request has expired due to timeout
+  EXPIRED = 2;
+  
+  // Request has been cancelled by the user
+  CANCELLED = 3;
+}
+
+// Request to cancel a pending match request
+message CancelMatchRequestRequest {
+  // The unique identifier of the match request to cancel
+  string request_id = 1;
+}
+
+// Response confirming cancellation
+message CancelMatchRequestResponse {
+  // Whether the cancellation was successful
+  bool success = 1;
+}

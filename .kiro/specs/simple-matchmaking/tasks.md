@@ -36,7 +36,7 @@ This implementation plan breaks down the simple matchmaking feature into discret
   - Remove CloudSave SDK usage and dependencies if not needed for matchmaking
   - _Requirements: All (cleanup template functionality)_
 
-- [ ] 5. Define Proto Messages and Generate Code
+- [x] 5. Define Proto Messages and Generate Code
   - Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Protos/matchmaking.proto` with all message types and service definition
   - Define `SubmitMatchRequestRequest`, `SubmitMatchRequestResponse`, `GetMatchStatusRequest`, `GetMatchStatusResponse`, `CancelMatchRequestRequest`, `CancelMatchRequestResponse`
   - Define `MatchRequestStatus` enum
