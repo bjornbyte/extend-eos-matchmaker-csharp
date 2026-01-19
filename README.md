@@ -69,20 +69,20 @@ The matchmaking service is implemented with the following key components:
 ├── src
 │   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server
 │   │   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server.csproj
-│   │   ├── Classes
+│   │   ├── Classes                           # Infrastructure & cross-cutting concerns
 │   │   │   ├── AuthorizationInterceptor.cs   # gRPC server interceptor for access token authentication and authorization
 │   │   │   ├── EOSConfig.cs                  # EOS SDK configuration
 │   │   │   ├── EOSSDKService.cs              # EOS SDK initialization and lifecycle management
 │   │   │   ├── MatchmakingExceptions.cs      # Custom exception types for matchmaking
 │   │   │   └── ...
-│   │   ├── Model
+│   │   ├── Model                             # Domain data structures
 │   │   │   ├── Match.cs                      # Match data model
 │   │   │   └── MatchRequest.cs               # Match request data model with status enum
 │   │   ├── Program.cs                        # App starts here, dependency injection setup
 │   │   ├── Protos
 │   │   │   ├── matchmaking.proto             # gRPC matchmaking service definition
 │   │   │   └── ...
-│   │   ├── Services
+│   │   ├── Services                          # Business logic & application services
 │   │   │   ├── MatchMaker.cs                 # Background service for automatic matching
 │   │   │   ├── MatchmakingService.cs         # gRPC service implementation
 │   │   │   ├── MatchPool.cs                  # Thread-safe in-memory match request storage
@@ -93,6 +93,12 @@ The matchmaking service is implemented with the following key components:
 │   └── extend-service-extension-server.sln
 └── ...
 ```
+
+### Code Organization
+
+- **Model/** - Domain entities and data structures (Match, MatchRequest)
+- **Services/** - Business logic and orchestration (MatchMaker, MatchPool, MatchmakingService)
+- **Classes/** - Infrastructure, middleware, and SDK integrations (Interceptors, EOS SDK wrapper)
 
 ## Configuration
 
