@@ -492,6 +492,62 @@ After completing testing, the next step is to deploy your app to `AccelByte Gami
 - **SessionCreator**: Creates EOS sessions for matched players
 - **Notifier**: Logs match events (extensible for webhooks/notifications)
 
+### Notifier Implementation
+
+The `INotifier` interface provides an extensibility point for notifying players when matches are found. The current implementation (`LoggingNotifier`) is a simple stub that logs match events to the console.
+
+**Current Implementation:**
+```csharp
+public class LoggingNotifier : INotifier
+{
+    public Task NotifyMatchAsync(Match match, SessionInfo sessionInfo)
+    {
+        // Logs match details to console
+        _logger.LogInformation("Match found: {MatchId} with {PlayerCount} players", ...);
+        return Task.CompletedTask;
+    }
+}
+```
+
+**Extensibility:**
+
+Game developers can implement custom notifiers to integrate with their notification systems:
+
+1. **Push Notifications**: Send push notifications to mobile devices via Firebase, APNs, or other services
+2. **WebSockets**: Notify connected clients in real-time through WebSocket connections
+3. **Message Queues**: Publish match events to RabbitMQ, Kafka, or Azure Service Bus for asynchronous processing
+4. **Webhooks**: POST match details to external webhook endpoints
+5. **AccelByte Lobby**: Send notifications through AccelByte's Lobby service to connected players
+6. **Custom Game Backend**: Integrate with your existing game backend notification system
+
+**Example Custom Implementation:**
+
+```csharp
+public class WebhookNotifier : INotifier
+{
+    private readonly HttpClient _httpClient;
+    private readonly string _webhookUrl;
+
+    public async Task NotifyMatchAsync(Match match, SessionInfo sessionInfo)
+    {
+        var payload = new {
+            match_id = match.MatchId,
+            session_id = sessionInfo.SessionId,
+            player_ids = sessionInfo.UserIds,
+            timestamp = DateTime.UtcNow
+        };
+        
+        await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
+    }
+}
+```
+
+To use a custom notifier, register it in `Program.cs`:
+```csharp
+// Replace LoggingNotifier with your custom implementation
+builder.Services.AddSingleton<INotifier, WebhookNotifier>();
+```
+
 ### Matching Algorithm
 
 The matcher uses a simple FIFO (First-In-First-Out) algorithm:
