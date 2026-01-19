@@ -75,11 +75,25 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             if ((strEnableAuth != null) && (strEnableAuth != String.Empty))
                 enableAuthorization = (strEnableAuth.Trim().ToLower() == "true");
 
+            // Configure MatchMaker settings
+            var matchMakerConfig = new MatchMakerConfig();
+            var matchMakerSection = builder.Configuration.GetSection("MatchMaker");
+            matchMakerConfig.MatchSize = matchMakerSection.GetValue<int>("MatchSize", 2);
+            matchMakerConfig.TickInterval = TimeSpan.FromSeconds(matchMakerSection.GetValue<int>("TickIntervalSeconds", 1));
+            matchMakerConfig.RequestTimeout = TimeSpan.FromSeconds(matchMakerSection.GetValue<int>("RequestTimeoutSeconds", 60));
+
             builder.Services
                 .AddSingleton<IAccelByteServiceProvider, DefaultAccelByteServiceProvider>()
                 .Configure<EOSConfig>(builder.Configuration.GetSection("EOS"))
                 .AddSingleton<EOSSDKService>()
                 .AddHostedService(sp => sp.GetRequiredService<EOSSDKService>())
+                // Register matchmaking services
+                .AddSingleton<IMatchPool, MatchPool>()
+                .AddSingleton<ISessionCreator, EOSSessionCreator>()
+                .AddSingleton<INotifier, LoggingNotifier>()
+                .AddSingleton(matchMakerConfig)
+                .AddSingleton<IMatchMaker, MatchMaker>()
+                .AddHostedService(sp => sp.GetRequiredService<IMatchMaker>() as MatchMaker)
                 .AddOpenTelemetry()
                 .WithTracing((traceConfig) =>
                 {
@@ -118,6 +132,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
 
             app.MapGrpcReflectionService();
             app.MapGrpcHealthChecksService();
+            app.MapGrpcService<MatchmakingService>();
             app.MapMetrics();
             app.Run();
             return 0;

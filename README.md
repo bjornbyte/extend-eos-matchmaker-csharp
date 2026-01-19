@@ -1,4 +1,4 @@
-# extend-service-extension-csharp
+# Simple EOS Matchmaking Service
 
 ```mermaid
 flowchart LR
@@ -18,37 +18,102 @@ web service created using a stack that includes a `gRPC Server` and the
 
 ## Overview
 
-This repository provides a project template for an `Extend Service Extension` 
-app written in `C#`. It includes an example of a custom guild service which has 
-two endpoints to create and get guild progress data. Additionally, it comes 
-with built-in instrumentation for observability, ensuring that metrics, traces, 
-and logs are available upon deployment.
+This repository provides a simple matchmaking service implemented as an `Extend Service Extension` 
+app written in `C#`. It includes a matchmaking service with three endpoints to submit match requests, 
+check match status, and cancel pending requests. The service uses Epic Online Services (EOS) SDK 
+for session creation and includes built-in instrumentation for observability, ensuring that metrics, 
+traces, and logs are available upon deployment.
 
-You can clone this repository to begin developing your own 
-`Extend Service Extension` app. Simply modify this project by defining your 
-endpoints in `service.proto` file and implementing the handlers for those 
-endpoints.
+### Matchmaking Features
+
+- **Submit Match Request**: Players submit matchmaking requests and receive a unique request ID
+- **Get Match Status**: Query the status of a match request (Pending, Matched, Expired, Cancelled)
+- **Cancel Match Request**: Cancel a pending match request before it's matched
+- **Automatic Matching**: Background service automatically matches players based on configured match size
+- **EOS Session Creation**: Matched players are placed into EOS sessions with session details returned
+- **Request Timeout**: Requests automatically expire after a configurable timeout period
+
+### API Endpoints
+
+The matchmaking service exposes three gRPC endpoints (also available as REST via gRPC Gateway):
+
+1. **SubmitMatchRequest**
+   - Submits a new matchmaking request for the authenticated user
+   - Returns a unique request ID for tracking
+   - Rejects duplicate requests from the same user
+
+2. **GetMatchStatus**
+   - Queries the status of a match request by request ID
+   - Returns status (Pending, Matched, Expired, Cancelled)
+   - Includes session details when matched
+
+3. **CancelMatchRequest**
+   - Cancels a pending match request
+   - Only pending requests can be cancelled
+   - Returns confirmation of cancellation
 
 ## Project Structure
 
-Customizing your Extend Service Extension app involves modifying the `service.proto` and `MyService.cs` files. The app initializes key components, such as the gRPC server, in `Program.cs`. When a request is made to the RESTful endpoint, the gRPC gateway handles it and forwards it to the corresponding gRPC method. Before `MyService.cs` executes any custom logic based on the request, the `AuthorizationInterceptor.cs` first verifies that the request has the necessary access token and authorization. No other files need to be modified unless you require further customization.
+The matchmaking service is implemented with the following key components:
 
 ```shell
 .
 ├── src
-│   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server
-│   │   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server.csproj
-│   │   ├── Classes
-│   │   │   ├── AuthorizationInterceptor.cs   # gRPC server interceptor for access token authentication and authorization
-│   │   │   └── ...
-│   │   ├── Program.cs    # App starts here
-│   │   ├── Protos
-│   │   │   ├── service.proto   # gRPC server protobuf with additional options for exposing as RESTful web service
-│   │   │   └── ...
-│   │   ├── Services
-│   │   │   └── MyService.cs    # gRPC server implementation containing the custom logic
-│   └── extend-service-extension-server.sln
+│   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server
+│   │   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server.csproj
+│   │   ├── Classes
+│   │   │   ├── AuthorizationInterceptor.cs   # gRPC server interceptor for access token authentication and authorization
+│   │   │   ├── EOSConfig.cs                  # EOS SDK configuration
+│   │   │   ├── EOSSDKService.cs              # EOS SDK initialization and lifecycle management
+│   │   │   ├── MatchmakingExceptions.cs      # Custom exception types for matchmaking
+│   │   │   └── ...
+│   │   ├── Model
+│   │   │   ├── Match.cs                      # Match data model
+│   │   │   └── MatchRequest.cs               # Match request data model with status enum
+│   │   ├── Program.cs                        # App starts here, dependency injection setup
+│   │   ├── Protos
+│   │   │   ├── matchmaking.proto             # gRPC matchmaking service definition
+│   │   │   └── ...
+│   │   ├── Services
+│   │   │   ├── MatchMaker.cs                 # Background service for automatic matching
+│   │   │   ├── MatchmakingService.cs         # gRPC service implementation
+│   │   │   ├── MatchPool.cs                  # Thread-safe in-memory match request storage
+│   │   │   ├── Notifier.cs                   # Match notification interface and implementation
+│   │   │   └── SessionCreator.cs             # EOS session creation interface and implementation
+│   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
+│   │   └── ...                               # Unit tests for all components (71 tests)
+│   └── extend-service-extension-server.sln
 └── ...
+```
+
+## Configuration
+
+The matchmaking service can be configured via `appsettings.json` or environment variables:
+
+### MatchMaker Configuration
+
+```json
+{
+  "MatchMaker": {
+    "MatchSize": 2,                    // Number of players per match
+    "TickIntervalSeconds": 1,          // How often the matcher runs (in seconds)
+    "RequestTimeoutSeconds": 60        // How long before requests expire (in seconds)
+  }
+}
+```
+
+### EOS Configuration
+
+```json
+{
+  "EOS": {
+    "ProductId": "your-product-id",
+    "SandboxId": "your-sandbox-id",
+    "DeploymentId": "your-deployment-id",
+    "ClientId": "your-client-id",
+    "ClientSecret": "your-client-secret"
+  }
+}
 ```
 
 ## Prerequisites
@@ -161,11 +226,20 @@ Customizing your Extend Service Extension app involves modifying the `service.pr
       - For AGS Private Cloud customers:
          - `ADMIN:ROLE [READ]` to validate access token and permissions
          - `ADMIN:NAMESPACE:{namespace}:NAMESPACE [READ]` to validate access namespace
-         - `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [CREATE,READ,UPDATE,DELETE]` to create, read, update, and delete cloudsave records         
       - For AGS Shared Cloud customers:
          - IAM -> Roles (Read)
          - Basic -> Namespace (Read)
-         - Cloud Save -> Game Records (Create, Read, Update, Delete)
+
+3. Epic Online Services (EOS) Account
+
+   a. Create an account at [Epic Games Developer Portal](https://dev.epicgames.com/)
+
+   b. Create a Product and get the following credentials:
+      - Product ID
+      - Sandbox ID
+      - Deployment ID
+      - Client ID
+      - Client Secret
 
 ## Setup
 
@@ -189,7 +263,7 @@ To be able to run this app, you will need to follow these setup steps.
    AB_CLIENT_SECRET='xxxxxxxxxx'             # Client Secret from the Prerequisites section
    AB_NAMESPACE='xxxxxxxxxx'                 # Namespace ID from the Prerequisites section
    PLUGIN_GRPC_SERVER_AUTH_ENABLED=true      # Enable or disable access token and permission validation
-   BASE_PATH='/guild'                        # The base path used for the app
+   BASE_PATH='/eos-matchmaking'              # The base path used for the app
    EOS_PRODUCT_ID='xxxxxxxxxx'               # EOS Product ID from Epic Games Developer Portal
    EOS_SANDBOX_ID='xxxxxxxxxx'               # EOS Sandbox ID from Epic Games Developer Portal
    EOS_DEPLOYMENT_ID='xxxxxxxxxx'            # EOS Deployment ID from Epic Games Developer Portal
@@ -211,12 +285,12 @@ To be able to run this app, you will need to follow these setup steps.
          "BaseUrl": "http://test.accelbyte.io",       // Your environment's domain Base URL (env var: AB_BASE_URL)
          "ClientId": "xxxxxxxxxx",                    // Client ID (env var: AB_CLIENT_ID)    
          "ClientSecret": "xxxxxxxxxx",                // Client Secret (env var: AB_CLIENT_SECRET)
-         "AppName": "EXTENDSERVICEEXTENSIONSERVICE",
+         "AppName": "SIMPLEEOSMATCHMAKING",
          "TraceIdVersion": "1",
          "Namespace": "xxxxxxxxxx",                   // Namespace ID (env var: AB_NAMESPACE)
          "EnableTraceId": true,
          "EnableUserAgentInfo": true,
-         "ResourceName": "EXTENDSERVICEEXTENSIONSERVICE"
+         "ResourceName": "SIMPLEEOSMATCHMAKING"
       },
       "EOS": {
          "ProductId": "xxxxxxxxxx",                   // EOS Product ID (env var: EOS_PRODUCT_ID)
@@ -224,6 +298,11 @@ To be able to run this app, you will need to follow these setup steps.
          "DeploymentId": "xxxxxxxxxx",                // EOS Deployment ID (env var: EOS_DEPLOYMENT_ID)
          "ClientId": "xxxxxxxxxx",                    // EOS Client ID (env var: EOS_CLIENT_ID)
          "ClientSecret": "xxxxxxxxxx"                 // EOS Client Secret (env var: EOS_CLIENT_SECRET)
+      },
+      "MatchMaker": {
+         "MatchSize": 2,                              // Number of players per match
+         "TickIntervalSeconds": 1,                    // Matcher tick interval
+         "RequestTimeoutSeconds": 60                  // Request timeout duration
       }
    }
    ```
@@ -249,7 +328,7 @@ docker compose up --build
 
 ### Test in Local Development Environment
 
-This app can be tested locally through the Swagger UI.
+This app can be tested locally through the Swagger UI or Postman.
 
 1. Run this app by using the command below.
 
@@ -272,28 +351,61 @@ This app can be tested locally through the Swagger UI.
 
    Inside the postman collection, use `get-client-access-token` request to get client token or use `get-user-access-token` request to get user access token.
 
-   > :info: When using client access token, make sure the IAM client has following permission: 
-   `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [CREATE,READ,UPDATE,DELETE]`.
-   
-   > :info: When using user access token, make sure the user has a role which contains following permission:
-   `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [CREATE,READ,UPDATE,DELETE]`.
+   > :info: When using user access token, make sure the user has appropriate permissions to access the matchmaking service.
 
 3. The REST API service can then be tested by opening Swagger UI at 
-   `http://localhost:8000/guild/apidocs/`. Use this to create an API request 
+   `http://localhost:8000/eos-matchmaking/apidocs/`. Use this to create an API request 
    to try the endpoints.
    
    > :info: Depending on the envar you set for `BASE_PATH`, the service will 
    have different service URL. This how it's the formatted 
    `http://localhost:8000/<base_path>`
 
-   ![swagger-interface](./docs/images/swagger-interface.png)
+   To authorize Swagger UI, click on "Authorize" button on right side, input "Bearer <user access token>" in `Value` field for 
+   `Bearer (apiKey)`, then click "Authorize" to save the user's access token.
 
-   To authorize Swagger UI, click on "Authorize" button on right side.
+### Testing the Matchmaking Flow
 
-   ![swagger-interface](./docs/images/swagger-authorize.png)
+Here's a typical matchmaking flow to test:
 
-   Popup will show, input "Bearer <user access token>" in `Value` field for 
-   `Bearer (apiKey)`. Then click "Authorize" to save the user's access token.
+1. **Submit Match Requests** - Have 2 or more players submit match requests
+   ```
+   POST /eos-matchmaking/v1/match-requests
+   ```
+   Each player receives a unique `request_id`
+
+2. **Check Status** - Query the status of a request
+   ```
+   GET /eos-matchmaking/v1/match-requests/{request_id}
+   ```
+   Status will be "PENDING" initially
+
+3. **Wait for Match** - The background matcher runs every second (configurable)
+   - When enough players are in the pool, they are automatically matched
+   - An EOS session is created for the match
+   - Request status changes to "MATCHED"
+
+4. **Get Match Details** - Query again to get session information
+   ```
+   GET /eos-matchmaking/v1/match-requests/{request_id}
+   ```
+   Response includes `session_id` and matched player information
+
+5. **Cancel Request** (Optional) - Cancel a pending request
+   ```
+   DELETE /eos-matchmaking/v1/match-requests/{request_id}
+   ```
+   Only works for pending requests
+
+### Running Unit Tests
+
+The project includes comprehensive unit tests (71 tests covering all components):
+
+```shell
+dotnet test src/extend-service-extension-server.sln
+```
+
+All tests should pass before deployment.
 
 ### Test Observability
 
@@ -347,6 +459,11 @@ After completing testing, the next step is to deploy your app to `AccelByte Gami
    - Secrets
       - `AB_CLIENT_ID`
       - `AB_CLIENT_SECRET`
+      - `EOS_PRODUCT_ID`
+      - `EOS_SANDBOX_ID`
+      - `EOS_DEPLOYMENT_ID`
+      - `EOS_CLIENT_ID`
+      - `EOS_CLIENT_SECRET`
 
 2. **Build and Push the Container Image**
 
@@ -365,7 +482,33 @@ After completing testing, the next step is to deploy your app to `AccelByte Gami
    - Select the image you just pushed
    - Click **Deploy Image**
 
-## Next Step
+## Architecture
 
-Proceed by modifying this `Extend Service Extension` app template to implement your own custom logic. For more details, see [here](https://docs.accelbyte.io/gaming-services/services/extend/service-extension/customize-service-extension-app/).
+### Components
+
+- **MatchmakingService**: gRPC service handling client requests
+- **MatchPool**: Thread-safe in-memory storage for pending match requests
+- **MatchMaker**: Background service that periodically creates matches from the pool
+- **SessionCreator**: Creates EOS sessions for matched players
+- **Notifier**: Logs match events (extensible for webhooks/notifications)
+
+### Matching Algorithm
+
+The matcher uses a simple FIFO (First-In-First-Out) algorithm:
+1. Every tick interval (default: 1 second), the matcher checks the pool
+2. Takes the oldest N requests (where N = MatchSize)
+3. Creates an EOS session for those players
+4. Updates request statuses to "MATCHED" with session details
+5. If session creation fails, requests are returned to the pool
+
+### Request Lifecycle
+
+```
+Submit → PENDING → (matched) → MATCHED
+              ↓
+              (timeout) → EXPIRED
+              ↓
+              (cancel) → CANCELLED
+```
+
 
