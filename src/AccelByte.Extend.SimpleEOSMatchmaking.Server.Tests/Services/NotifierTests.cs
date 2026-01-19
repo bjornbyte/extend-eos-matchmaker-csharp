@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Services;
 using Microsoft.Extensions.Logging;
 using Moq;

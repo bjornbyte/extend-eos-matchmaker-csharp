@@ -5,6 +5,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {

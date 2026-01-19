@@ -77,7 +77,8 @@ The matchmaking service is implemented with the following key components:
 │   │   │   └── ...
 │   │   ├── Model                             # Domain data structures
 │   │   │   ├── Match.cs                      # Match data model
-│   │   │   └── MatchRequest.cs               # Match request data model with status enum
+│   │   │   ├── MatchRequest.cs               # Match request data model with status enum
+│   │   │   └── SessionInfo.cs                # Session information data model
 │   │   ├── Program.cs                        # App starts here, dependency injection setup
 │   │   ├── Protos
 │   │   │   ├── matchmaking.proto             # gRPC matchmaking service definition

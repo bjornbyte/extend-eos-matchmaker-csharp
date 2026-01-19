@@ -15,17 +15,6 @@ using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// Information about a created session
-    /// </summary>
-    public class SessionInfo
-    {
-        public string SessionId { get; set; } = string.Empty;
-        public List<string> RequestIds { get; set; } = new();
-        public List<string> UserIds { get; set; } = new();
-        public DateTime CreatedAt { get; set; }
-    }
-
-    /// <summary>
     /// Interface for creating game sessions
     /// </summary>
     public interface ISessionCreator
