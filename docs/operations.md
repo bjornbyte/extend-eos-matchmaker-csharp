@@ -4,53 +4,91 @@
 
 ---
 
-This guide covers testing, monitoring, error handling, troubleshooting, and development workflows for the Guild Progress Service Extension.
+This guide covers testing, monitoring, error handling, troubleshooting, and development workflows for the Simple EOS Matchmaking Service.
 
 ## Testing
 
-### Test in Local Development Environment
+### Local Testing with Swagger UI
 
-#### Quick Start with Swagger UI
+The recommended way to test the service is using Swagger UI.
 
-The recommended way to test this service is using the Swagger UI interface.
-
-1. **Run the service**:
-
-   ```shell
+1. **Run the service:**
+   ```bash
    docker compose up --build
    ```
 
-2. **Get an access token**:
+2. **Get an access token:**
    
-   Use [demo/get-access-token.postman_collection.json](../demo/get-access-token.postman_collection.json) to obtain an access token.
-
+   Use [demo/get-access-token.postman_collection.json](../demo/get-access-token.postman_collection.json) to obtain a token.
+   
    Required Postman environment variables:
    - `AB_BASE_URL`: https://test.accelbyte.io
    - `AB_CLIENT_ID`: Your OAuth client ID
    - `AB_CLIENT_SECRET`: Your OAuth client secret
-   - `AB_USERNAME`: Test user email (for user token)
-   - `AB_PASSWORD`: Test user password (for user token)
+   - `AB_USERNAME`: Test user email
+   - `AB_PASSWORD`: Test user password
 
-3. **Access Swagger UI**:
+3. **Access Swagger UI:**
    
-   Open `http://localhost:8000/guild/apidocs/`
+   Open `http://localhost:8000/eos-matchmaking/apidocs/`
    
-   > :information_source: The URL path depends on your `BASE_PATH` setting. Format: `http://localhost:8000{BASE_PATH}/apidocs/`
+   > The URL path depends on your `BASE_PATH` setting.
 
-   ![swagger-interface](./images/swagger-interface.png)
-
-4. **Authorize Swagger UI**:
-
+4. **Authorize Swagger UI:**
+   
    Click "Authorize" button and enter:
    ```
    Bearer <your_access_token>
    ```
 
-   ![swagger-interface](./images/swagger-authorize.png)
+5. **Test Endpoints:**
+   - `POST /matchmaking/v1/request` - Submit match request
+   - `GET /matchmaking/v1/request/{request_id}` - Get match status
+   - `DELETE /matchmaking/v1/request/{request_id}` - Cancel match request
 
-5. **Test Endpoints**:
-   - `POST /v1/admin/namespace/{namespace}/progress` - Create or update guild progress
-   - `GET /v1/admin/namespace/{namespace}/progress/{guild_id}` - Get guild progress
+### Complete Matchmaking Flow
+
+Here's a typical matchmaking flow to test:
+
+1. **Submit Match Requests** - Have 2 or more players submit requests
+   ```
+   POST /eos-matchmaking/matchmaking/v1/request
+   Body: { "metadata": { "region": "us-west" } }
+   ```
+   Each player receives a unique `request_id`
+
+2. **Check Status** - Query the status
+   ```
+   GET /eos-matchmaking/matchmaking/v1/request/{request_id}
+   ```
+   Status will be "PENDING" initially
+
+3. **Wait for Match** - The background matcher runs every second
+   - When enough players are in the pool, they are automatically matched
+   - An EOS session is created
+   - Request status changes to "MATCHED"
+
+4. **Get Match Details** - Query again to get session information
+   ```
+   GET /eos-matchmaking/matchmaking/v1/request/{request_id}
+   ```
+   Response includes `session_id` and matched player information
+
+5. **Cancel Request** (Optional) - Cancel a pending request
+   ```
+   DELETE /eos-matchmaking/matchmaking/v1/request/{request_id}
+   ```
+   Only works for pending requests
+
+### Running Unit Tests
+
+The project includes comprehensive unit tests:
+
+```bash
+dotnet test src/extend-service-extension-server.sln
+```
+
+All tests should pass before deployment.
 
 ---
 
@@ -60,124 +98,111 @@ The recommended way to test this service is using the Swagger UI interface.
 
 The service includes built-in observability features:
 
-- **Metrics**: Prometheus metrics available at `:8080/metrics`
+- **Metrics**: Prometheus metrics at `:8080/metrics`
 - **Tracing**: OpenTelemetry distributed tracing
-- **Logging**: Structured JSON logs with configurable levels
+- **Logging**: Structured JSON logs
 
 ### Local Development Setup
 
-To see how observability works in local development, follow these steps:
+To see observability in action locally:
 
-1. **Uncomment loki logging driver** in [docker-compose.yaml](../docker-compose.yaml):
-
-   ```yaml
-   # logging:
-   #   driver: loki
-   #   options:
-   #     loki-url: http://host.docker.internal:3100/loki/api/v1/push
-   #     mode: non-blocking
-   #     max-buffer-size: 4m
-   #     loki-retries: "3"
+1. **Install Docker Loki plugin:**
+   ```bash
+   docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
    ```
 
-   > :warning: **Make sure to install docker loki plugin beforehand**: Otherwise,
-   this app will not be able to run. This is required so that container 
-   logs can flow to the `loki` service within `grpc-plugin-dependencies` stack. 
-   Use this command to install docker loki plugin: 
-   `docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions`.
+2. **Uncomment loki logging driver** in [docker-compose.yaml](../docker-compose.yaml):
+   ```yaml
+   logging:
+     driver: loki
+     options:
+       loki-url: http://host.docker.internal:3100/loki/api/v1/push
+       mode: non-blocking
+       max-buffer-size: 4m
+       loki-retries: "3"
+   ```
 
-2. **Clone and run grpc-plugin-dependencies** stack alongside this app:
-
+3. **Clone and run grpc-plugin-dependencies:**
    ```bash
    git clone https://github.com/AccelByte/grpc-plugin-dependencies.git
    cd grpc-plugin-dependencies
    docker compose up
    ```
+   
+   Grafana will be accessible at http://localhost:3000
 
-   After this, Grafana will be accessible at http://localhost:3000.
-
-   > :exclamation: More information about [grpc-plugin-dependencies](https://github.com/AccelByte/grpc-plugin-dependencies) is available [here](https://github.com/AccelByte/grpc-plugin-dependencies/blob/main/README.md).
-
-3. **Perform testing** to generate logs and metrics. For example, by following [Test in Local Development Environment](#test-in-local-development-environment).
+4. **Perform testing** to generate logs and metrics
 
 ### Production Observability
 
-For production deployments, configure the following environment variables:
+Configure these environment variables:
 
-- `OTEL_EXPORTER_ZIPKIN_ENDPOINT` - Zipkin endpoint for distributed tracing
-- `OTEL_SERVICE_NAME` - Service name for tracing (default: `eos-voice-rtc`)
-- `LOG_LEVEL` - Log level: `debug`, `info`, `warn`, `error` (default: `info`)
+- `OTEL_EXPORTER_ZIPKIN_ENDPOINT` - Zipkin endpoint for tracing
+- `OTEL_SERVICE_NAME` - Service name for tracing
+- `LOG_LEVEL` - Log level: debug, info, warn, error
 
 ---
 
-## API Error Codes
+## Error Codes
 
-### Understanding Error Responses
+### gRPC Error Responses
 
-The service returns gRPC errors with the following structure:
+The service returns gRPC errors with this structure:
 
 ```json
 {
-    "code": 5,                           // Standard gRPC code (0-16)
-    "message": "Guild not found.",       // Human-readable message
-    "details": []                        // Additional context (optional)
+  "code": 5,
+  "message": "Match request not found",
+  "details": []
 }
 ```
 
 ### Common Error Scenarios
 
-**Scenario 1: Invalid Namespace**
-
+**Match Request Not Found (404)**
 ```json
 {
-    "code": 3,  // gRPC InvalidArgument
-    "message": "Invalid namespace"
+  "code": 5,
+  "message": "Match request not found"
 }
 ```
+→ Request ID doesn't exist or was already processed
 
-→ Namespace format is invalid or doesn't exist. Client should fix the input.
-
-**Scenario 2: Guild Not Found**
-
+**User Already Has Pending Request (409)**
 ```json
 {
-    "code": 5,  // gRPC NotFound
-    "message": "Guild progress not found"
+  "code": 9,
+  "message": "User already has a pending match request: {request_id}"
 }
 ```
+→ User must cancel existing request before submitting new one
 
-→ Guild ID is valid but no progress record exists. Client should create one first.
-
-**Scenario 3: Permission Denied**
-
+**Cannot Cancel Non-Pending Request (412)**
 ```json
 {
-    "code": 7,  // gRPC PermissionDenied
-    "message": "Insufficient permissions"
+  "code": 9,
+  "message": "Cannot cancel request with status: MATCHED"
 }
 ```
+→ Only PENDING requests can be cancelled
 
-→ Access token doesn't have required CLOUDSAVE:RECORD permissions.
+**Unauthenticated (401)**
+```json
+{
+  "code": 16,
+  "message": "Authorization required"
+}
+```
+→ Missing or invalid Bearer token
 
 ### gRPC Code to HTTP Status Mapping
 
 | gRPC Code | gRPC Name | HTTP Equiv | When to Retry |
 |-----------|-----------|------------|---------------|
-| 3 | InvalidArgument | 400 | ❌ Never |
 | 5 | NotFound | 404 | ❌ Never |
-| 7 | PermissionDenied | 403 | ❌ Never |
+| 9 | FailedPrecondition | 412 | ❌ Never |
 | 13 | Internal | 500 | 🔄 Yes |
 | 16 | Unauthenticated | 401 | 🔑 Refresh token |
-
-### Client Retry Behavior
-
-**DO NOT RETRY (4xx errors)**: These are client errors indicating bad input or missing resources.
-- **gRPC code 3** (InvalidArgument) - Invalid input format, fix the request
-- **gRPC code 5** (NotFound) - Resource doesn't exist
-- **gRPC code 7** (PermissionDenied) - Fix permissions or use correct token
-
-**SAFE TO RETRY (5xx errors)**: These are server errors that may be temporary.
-- **gRPC code 13** (Internal) - Use exponential backoff with max retries
 
 ---
 
@@ -185,71 +210,43 @@ The service returns gRPC errors with the following structure:
 
 ### Service Won't Start
 
-**Symptom:**
-```
-Error: missing required environment variable
-```
+**Symptom:** Service fails to start with configuration error
 
-**Solution**: Check `.env` file contains all required variables from the template.
+**Solution:**
+- Check `.env` file has all required variables
+- Verify EOS credentials are correct
+- Check Docker is running
+- Review service logs: `docker compose logs -f`
 
-Ensure the following variables are set:
-- `AB_BASE_URL`, `AB_CLIENT_ID`, `AB_CLIENT_SECRET`, `AB_NAMESPACE`
-- `BASE_PATH` (must start with `/`)
+### Match Requests Not Matching
 
----
+**Symptom:** Requests stay in PENDING status
+
+**Solution:**
+- Check MatchMaker is running (should see tick logs)
+- Verify enough requests in pool (need >= MatchSize)
+- Check EOS credentials are valid
+- Review MatchMaker logs for errors
+
+### EOS Session Creation Fails
+
+**Symptom:** Requests return to pool, no matches created
+
+**Solution:**
+- Verify EOS Product, Sandbox, Deployment exist
+- Check EOS Client ID and Secret are valid
+- Ensure EOS SDK initialized successfully
+- Check service logs for EOS error codes
 
 ### Permission Denied
 
-**Symptom:**
-```
-403 Forbidden - insufficient permissions
-```
+**Symptom:** 403 Forbidden errors
 
-**Solution**:
-
-This error occurs when the **OAuth client calling the service** doesn't have the required CLOUDSAVE:RECORD permissions.
-
-#### For AGS Private Cloud
-
-1. **Identify which OAuth client is calling the service** (your game server or game client)
-2. **Add the required permissions to that OAuth client**:
-   - `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [CREATE]` - for creating/updating guild progress
-   - `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [READ]` - for reading guild progress
-3. **Regenerate the access token** after adding permissions
-4. **Use the new token** when calling endpoints
-
-#### For AGS Shared Cloud
-
-- Add the following permissions to your OAuth client:
-  - Cloud Save -> Game Records (Create, Read, Update, Delete)
-
----
-
-### Guild Not Found
-
-**Symptom:**
-```
-404 Not Found - Guild progress not found
-```
-
-**Solution**:
-- Verify the `guild_id` is correct
-- The guild progress must be created before it can be retrieved
-- Use the create/update endpoint first to initialize guild progress
-
----
-
-### Invalid Namespace
-
-**Symptom:**
-```
-400 Bad Request - Invalid namespace
-```
-
-**Solution**:
-- Verify the namespace exists in your AccelByte environment
-- Check that the OAuth client has access to this namespace
-- Ensure the namespace is in active status
+**Solution:**
+- Verify OAuth client has required permissions
+- Check token is valid and not expired
+- Ensure namespace matches request
+- Regenerate access token
 
 ---
 
@@ -257,38 +254,34 @@ This error occurs when the **OAuth client calling the service** doesn't have the
 
 ### Running Tests
 
-```shell
+```bash
 # Run all tests
 dotnet test
 
-# Run tests with coverage
+# Run with coverage
 dotnet test --collect:"XPlat Code Coverage"
 
 # Run specific test
 dotnet test --filter "FullyQualifiedName~TestMethodName"
 ```
 
-### Code Linting
-
-The project uses standard .NET code analysis. Configure analysis rules in the `.csproj` file or via `.editorconfig`.
-
 ### Regenerate Protocol Buffers
 
-After modifying `Protos/service.proto`:
+After modifying `Protos/matchmaking.proto`:
 
-```shell
+```bash
 dotnet build
 ```
 
 This regenerates:
 - C# gRPC service stubs
 - Gateway integration code
-- Swagger/OpenAPI specification in `gateway/apidocs/service.swagger.json`
+- Swagger/OpenAPI specification
 
 ---
 
-## Additional Resources
+## Next Steps
 
-- **Testing Guide**: [testing_guide.md](testing_guide.md) - Comprehensive testing instructions
-- **AccelByte Docs**: [Extend Service Extension](https://docs.accelbyte.io/gaming-services/services/extend/service-extension/)
-- **gRPC Gateway**: [grpc-ecosystem/grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway)
+- [Testing Guide](testing_guide.md) - Comprehensive testing instructions
+- [Architecture Guide](architecture.md) - Technical architecture details
+- [AccelByte Docs](https://docs.accelbyte.io/gaming-services/services/extend/service-extension/) - Official documentation

@@ -1,26 +1,30 @@
-# Guild Progress Service - Testing Guide
+# Testing Guide
 
-This guide provides instructions for manual end-to-end testing of the Guild Progress Service Extension using Swagger UI and Postman.
+**📚 Documentation:** [README](../README.md) | [Setup](setup.md) | [Architecture](architecture.md) | [Operations](operations.md) | [Testing](testing_guide.md)
+
+---
+
+This guide provides comprehensive instructions for manual end-to-end testing of the Simple EOS Matchmaking Service using Swagger UI and Postman.
 
 ## Prerequisites
 
 ### 1. Service Setup
+
 - **Service Running**: Ensure the service is running locally
   ```bash
   docker compose up --build
   ```
 - **Service URL**: `http://localhost:8000`
-- **Swagger UI**: `http://localhost:8000/guild/apidocs/`
+- **Swagger UI**: `http://localhost:8000/eos-matchmaking/apidocs/`
 
 ### 2. AccelByte Setup
+
 You need the following AccelByte resources:
 
 - **Client Credentials** (for authentication)
-  - `client_id` - OAuth client ID with password grant or client credentials
+  - `client_id` - OAuth client ID
   - `client_secret` - OAuth client secret
-  - Required permissions:
-    - `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [CREATE]` - for creating/updating guild progress
-    - `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [READ]` - for reading guild progress
+  - Required permissions: `NAMESPACE:{namespace}:MATCHMAKING [CREATE, READ, DELETE]`
 
 - **Test User Account** (if using password grant)
   - `user_email` - Email of test user
@@ -28,6 +32,13 @@ You need the following AccelByte resources:
 
 - **Test Resources**
   - `namespace` - Your AccelByte namespace ID
+
+### 3. EOS Setup
+
+- EOS credentials configured in `.env` file
+- Valid EOS Product, Sandbox, and Deployment
+
+---
 
 ## Postman Setup
 
@@ -43,12 +54,14 @@ You need the following AccelByte resources:
    - Add the following variables:
 
    ```
-   AB_BASE_URL: https://test.accelbyte.io (or your AGS URL)
+   AB_BASE_URL: https://test.accelbyte.io
    AB_CLIENT_ID: <YOUR_CLIENT_ID>
    AB_CLIENT_SECRET: <YOUR_CLIENT_SECRET>
    AB_USERNAME: <YOUR_TEST_USER_EMAIL>
    AB_PASSWORD: <YOUR_TEST_USER_PASSWORD>
    ```
+
+---
 
 ## Test Flow
 
@@ -61,13 +74,9 @@ You need the following AccelByte resources:
 - **Auth:** Basic Auth (AB_CLIENT_ID:AB_CLIENT_SECRET)
 - **Body:**
   ```
-  grant_type: password (for user token)
+  grant_type: password
   username: {{AB_USERNAME}}
   password: {{AB_PASSWORD}}
-  ```
-  OR
-  ```
-  grant_type: client_credentials (for client token)
   ```
 
 **Expected Response:**
@@ -83,24 +92,22 @@ You need the following AccelByte resources:
 
 ---
 
-### Step 2: Create or Update Guild Progress
+### Step 2: Submit Match Request
 
-**Request:** `POST /v1/admin/namespace/{namespace}/progress`
+**Request:** `POST /matchmaking/v1/request`
 
 - **Method:** POST
-- **Endpoint:** `http://localhost:8000/guild/v1/admin/namespace/{namespace}/progress`
+- **Endpoint:** `http://localhost:8000/eos-matchmaking/matchmaking/v1/request`
 - **Auth:** Bearer Token (access_token from Step 1)
+- **Headers:**
+  - `Authorization: Bearer <access_token>`
+  - `user-id: test-user-1` (for testing without token parsing)
 - **Body:**
   ```json
   {
-    "guild_progress": {
-      "guild_id": "test-guild-123",
-      "namespace": "your-namespace",
-      "objectives": {
-        "boss_kills": 10,
-        "quests_completed": 25,
-        "members_recruited": 5
-      }
+    "metadata": {
+      "region": "us-west",
+      "skill_level": "intermediate"
     }
   }
   ```
@@ -108,51 +115,77 @@ You need the following AccelByte resources:
 **Expected Response:**
 ```json
 {
-  "guild_progress": {
-    "guild_id": "test-guild-123",
-    "namespace": "your-namespace",
-    "objectives": {
-      "boss_kills": 10,
-      "quests_completed": 25,
-      "members_recruited": 5
-    }
-  }
+  "request_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
 **Notes:**
-- If `guild_id` is empty, a new GUID will be generated automatically
-- The `objectives` map can contain any key-value pairs you need
+- `metadata` is optional and can contain any key-value pairs
+- Each user can only have one pending request at a time
+- Save the `request_id` for status queries
 
 ---
 
-### Step 3: Get Guild Progress
+### Step 3: Check Match Status
 
-**Request:** `GET /v1/admin/namespace/{namespace}/progress/{guild_id}`
+**Request:** `GET /matchmaking/v1/request/{request_id}`
 
 - **Method:** GET
-- **Endpoint:** `http://localhost:8000/guild/v1/admin/namespace/{namespace}/progress/test-guild-123`
-- **Auth:** Bearer Token (access_token from Step 1)
+- **Endpoint:** `http://localhost:8000/eos-matchmaking/matchmaking/v1/request/{request_id}`
+- **Auth:** Bearer Token
+- **Headers:**
+  - `Authorization: Bearer <access_token>`
+
+**Expected Response (Pending):**
+```json
+{
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "PENDING",
+  "session_id": "",
+  "matched_user_ids": [],
+  "matched_request_ids": []
+}
+```
+
+**Expected Response (Matched):**
+```json
+{
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "MATCHED",
+  "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "matched_user_ids": ["test-user-1", "test-user-2"],
+  "matched_request_ids": ["550e8400-...", "660e8400-..."]
+}
+```
+
+**Status Values:**
+- `PENDING` - Waiting for match
+- `MATCHED` - Successfully matched
+- `EXPIRED` - Timed out (default: 60 seconds)
+- `CANCELLED` - User cancelled
+
+---
+
+### Step 4: Cancel Match Request (Optional)
+
+**Request:** `DELETE /matchmaking/v1/request/{request_id}`
+
+- **Method:** DELETE
+- **Endpoint:** `http://localhost:8000/eos-matchmaking/matchmaking/v1/request/{request_id}`
+- **Auth:** Bearer Token
+- **Headers:**
+  - `Authorization: Bearer <access_token>`
 
 **Expected Response:**
 ```json
 {
-  "guild_progress": {
-    "guild_id": "test-guild-123",
-    "namespace": "your-namespace",
-    "objectives": {
-      "boss_kills": 10,
-      "quests_completed": 25,
-      "members_recruited": 5
-    }
-  }
+  "success": true
 }
 ```
 
-**Possible Errors:**
-- `404 Not Found`: Guild progress doesn't exist
-- `403 Permission Denied`: Token doesn't have required permissions
-- `401 Unauthorized`: Invalid or expired token
+**Notes:**
+- Only PENDING requests can be cancelled
+- Returns error if request is already MATCHED, EXPIRED, or CANCELLED
 
 ---
 
@@ -160,7 +193,7 @@ You need the following AccelByte resources:
 
 ### Step 1: Open Swagger UI
 
-Navigate to `http://localhost:8000/guild/apidocs/`
+Navigate to `http://localhost:8000/eos-matchmaking/apidocs/`
 
 ### Step 2: Authorize
 
@@ -168,166 +201,216 @@ Navigate to `http://localhost:8000/guild/apidocs/`
 2. Enter: `Bearer <your_access_token>`
 3. Click **Authorize**
 
-### Step 3: Test Create/Update Endpoint
+### Step 3: Test Submit Match Request
 
-1. Expand `POST /v1/admin/namespace/{namespace}/progress`
+1. Expand `POST /matchmaking/v1/request`
 2. Click **Try it out**
-3. Fill in:
-   - `namespace`: Your namespace ID
-   - Request body with guild progress data
+3. Fill in request body:
+   ```json
+   {
+     "metadata": {
+       "region": "us-west"
+     }
+   }
+   ```
 4. Click **Execute**
-5. Review the response
+5. Review the response and save the `request_id`
 
-### Step 4: Test Get Endpoint
+### Step 4: Test Get Match Status
 
-1. Expand `GET /v1/admin/namespace/{namespace}/progress/{guild_id}`
+1. Expand `GET /matchmaking/v1/request/{request_id}`
 2. Click **Try it out**
-3. Fill in:
-   - `namespace`: Your namespace ID
-   - `guild_id`: The guild ID from previous step
+3. Fill in `request_id` from previous step
 4. Click **Execute**
-5. Review the response
+5. Review the status
+
+### Step 5: Test Cancel Match Request
+
+1. Expand `DELETE /matchmaking/v1/request/{request_id}`
+2. Click **Try it out**
+3. Fill in `request_id`
+4. Click **Execute**
+5. Verify cancellation success
+
+---
+
+## Complete Matchmaking Scenario
+
+### Scenario: Two Players Match
+
+1. **Player 1 submits request:**
+   ```bash
+   POST /matchmaking/v1/request
+   Headers: user-id: player-1
+   Response: { "request_id": "req-1" }
+   ```
+
+2. **Player 2 submits request:**
+   ```bash
+   POST /matchmaking/v1/request
+   Headers: user-id: player-2
+   Response: { "request_id": "req-2" }
+   ```
+
+3. **Wait 1-2 seconds** (for MatchMaker tick)
+
+4. **Player 1 checks status:**
+   ```bash
+   GET /matchmaking/v1/request/req-1
+   Response: {
+     "status": "MATCHED",
+     "session_id": "session-123",
+     "matched_user_ids": ["player-1", "player-2"]
+   }
+   ```
+
+5. **Player 2 checks status:**
+   ```bash
+   GET /matchmaking/v1/request/req-2
+   Response: {
+     "status": "MATCHED",
+     "session_id": "session-123",
+     "matched_user_ids": ["player-1", "player-2"]
+   }
+   ```
 
 ---
 
 ## Error Scenario Testing
 
-### Test 1: Invalid Namespace
-Try accessing with a non-existent namespace.
-- Expected: `400 Bad Request` or `403 Permission Denied`
+### Test 1: Duplicate Request
 
-### Test 2: Guild Not Found
-Try getting a guild that doesn't exist.
-- Expected: `404 Not Found`
+**Steps:**
+1. Submit match request for user-1
+2. Submit another match request for user-1 (without cancelling first)
 
-### Test 3: Missing Authorization
-Try accessing without Bearer token.
-- Expected: `401 Unauthorized`
+**Expected:** `FailedPrecondition` error
+```json
+{
+  "code": 9,
+  "message": "User already has a pending match request: {request_id}"
+}
+```
 
-### Test 4: Insufficient Permissions
-Try accessing with a token that doesn't have CLOUDSAVE:RECORD permissions.
-- Expected: `403 Permission Denied`
+### Test 2: Request Not Found
+
+**Steps:**
+1. Query status with non-existent request ID
+
+**Expected:** `NotFound` error
+```json
+{
+  "code": 5,
+  "message": "Match request not found"
+}
+```
+
+### Test 3: Cancel Matched Request
+
+**Steps:**
+1. Submit request and wait for match
+2. Try to cancel the matched request
+
+**Expected:** `FailedPrecondition` error
+```json
+{
+  "code": 9,
+  "message": "Cannot cancel request with status: MATCHED"
+}
+```
+
+### Test 4: Request Expiration
+
+**Steps:**
+1. Submit request
+2. Wait 60+ seconds (default timeout)
+3. Check status
+
+**Expected:** Request removed from pool (NotFound) or status EXPIRED
 
 ---
 
 ## Sample Test Data
 
-### Sample Guild Progress Data
+### Sample Match Request 1
 
 ```json
 {
-  "guild_progress": {
-    "guild_id": "guild-alpha",
-    "namespace": "mygame",
-    "objectives": {
-      "total_xp": 50000,
-      "level": 15,
-      "dungeons_cleared": 42,
-      "pvp_wins": 18,
-      "guild_bank_gold": 100000
-    }
+  "metadata": {
+    "region": "us-west",
+    "skill_level": "beginner",
+    "game_mode": "casual"
   }
 }
 ```
 
-### Sample Update (Increment Progress)
+### Sample Match Request 2
 
 ```json
 {
-  "guild_progress": {
-    "guild_id": "guild-alpha",
-    "namespace": "mygame",
-    "objectives": {
-      "total_xp": 55000,
-      "level": 16,
-      "dungeons_cleared": 45,
-      "pvp_wins": 20,
-      "guild_bank_gold": 125000
-    }
+  "metadata": {
+    "region": "eu-central",
+    "skill_level": "advanced",
+    "game_mode": "ranked"
   }
 }
 ```
 
----
+### Sample Match Request 3 (Minimal)
 
-## API Response Reference
-
-### Success Response Structure
-
-**Guild Progress Response:**
 ```json
 {
-  "guild_progress": {
-    "guild_id": "string",
-    "namespace": "string",
-    "objectives": {
-      "key1": 0,
-      "key2": 0
-    }
-  }
+  "metadata": {}
 }
 ```
-
-### Error Response Structure
-
-**gRPC Error Response:**
-```json
-{
-  "code": 5,
-  "message": "Guild progress not found",
-  "details": []
-}
-```
-
-**Common Error Codes:**
-- `3` (InvalidArgument): Invalid input data
-- `5` (NotFound): Guild progress not found
-- `7` (PermissionDenied): Insufficient permissions
-- `13` (Internal): Server error
-- `16` (Unauthenticated): Invalid or missing token
 
 ---
 
 ## Troubleshooting
 
 ### Service Not Running
+
+**Symptom:**
 ```
 Error: connect ECONNREFUSED 127.0.0.1:8000
 ```
+
 **Solution:** Start the service with `docker compose up --build`
 
----
-
 ### Authentication Failed
+
+**Symptom:**
 ```
 401 Unauthorized
 ```
-**Solution:** 
-- Check client_id and client_secret are correct
-- Ensure OAuth client has password grant or client_credentials enabled
-- Verify user credentials (if using password grant)
 
----
-
-### Guild Not Found
-```
-404 Not Found
-```
 **Solution:**
-- Guild progress must be created before it can be retrieved
-- Use the create/update endpoint first
-- Verify the guild_id is correct
+- Check client_id and client_secret are correct
+- Ensure OAuth client has required permissions
+- Verify user credentials (if using password grant)
+- Check token hasn't expired
 
----
+### Match Not Created
+
+**Symptom:** Requests stay PENDING indefinitely
+
+**Solution:**
+- Ensure at least MatchSize (default: 2) requests are submitted
+- Check MatchMaker is running (view service logs)
+- Verify EOS credentials are valid
+- Check service logs for errors
 
 ### Permission Denied
+
+**Symptom:**
 ```
 403 Forbidden
 ```
+
 **Solution:**
-- Verify OAuth client has `ADMIN:NAMESPACE:{namespace}:CLOUDSAVE:RECORD [CREATE,READ]` permissions
+- Verify OAuth client has `NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]` permissions
 - Check namespace matches your namespace
-- Use correct client_id/secret
+- Regenerate access token after adding permissions
 
 ---
 
@@ -337,8 +420,8 @@ After successful testing:
 
 1. **Integration Testing**: Test with real game client
 2. **Load Testing**: Test with multiple concurrent requests
-3. **Data Validation**: Test with various objective data structures
-4. **Error Handling**: Test edge cases and error scenarios
+3. **Monitoring**: Set up Grafana dashboards
+4. **Deployment**: Deploy to AGS using [Setup Guide](setup.md)
 
 ---
 
@@ -346,5 +429,5 @@ After successful testing:
 
 For issues or questions:
 - Check service logs: `docker compose logs -f`
-- Review Swagger UI: `http://localhost:8000/guild/apidocs/`
+- Review Swagger UI: `http://localhost:8000/eos-matchmaking/apidocs/`
 - Check documentation: [README](../README.md)
