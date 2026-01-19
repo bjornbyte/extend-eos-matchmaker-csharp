@@ -19,6 +19,62 @@ using AccelByte.Extend.SimpleEOSMatchmaking.Server.Services;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 {
     /// <summary>
+    /// Logger provider that routes log messages to xUnit test output
+    /// </summary>
+    public class XunitLoggerProvider : ILoggerProvider
+    {
+        private readonly ITestOutputHelper _output;
+
+        public XunitLoggerProvider(ITestOutputHelper output)
+        {
+            _output = output;
+        }
+
+        public ILogger CreateLogger(string categoryName)
+        {
+            return new XunitLogger(_output, categoryName);
+        }
+
+        public void Dispose() { }
+    }
+
+    /// <summary>
+    /// Logger that writes to xUnit test output
+    /// </summary>
+    public class XunitLogger : ILogger
+    {
+        private readonly ITestOutputHelper _output;
+        private readonly string _categoryName;
+
+        public XunitLogger(ITestOutputHelper output, string categoryName)
+        {
+            _output = output;
+            _categoryName = categoryName;
+        }
+
+        public IDisposable BeginScope<TState>(TState state) => null!;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            try
+            {
+                var message = formatter(state, exception);
+                _output.WriteLine($"[{logLevel}] {_categoryName}: {message}");
+                if (exception != null)
+                {
+                    _output.WriteLine($"Exception: {exception}");
+                }
+            }
+            catch
+            {
+                // Ignore errors writing to test output
+            }
+        }
+    }
+
+    /// <summary>
     /// Shared fixture for EOS SDK initialization
     /// EOS SDK can only be initialized once per process, so we use a fixture
     /// </summary>
@@ -78,6 +134,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
         {
             if (IsInitialized)
             {
+                // Note: Disposing the EOS Platform will destroy all sessions created by it.
+                // This is expected behavior - sessions are tied to the platform lifecycle.
+                // In production, sessions persist as long as the matchmaking service is running.
                 EOSService?.StopAsync(CancellationToken.None).Wait();
                 EOSService?.Dispose();
             }
@@ -85,16 +144,97 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
     }
 
     /// <summary>
-    /// Tests for SessionCreator
-    /// Integration tests require valid EOS credentials in .env file
-    /// Unit tests can run without EOS credentials
+    /// Unit tests for SessionCreator that don't require EOS SDK initialization
+    /// NOTE: These tests are currently skipped because creating EOSSDKService instances
+    /// can trigger EOS SDK DLL loading even without calling StartAsync.
+    /// 
+    /// The validation logic tested here should be covered by integration tests
+    /// or by mocking ISessionCreator in other component tests.
     /// </summary>
-    public class SessionCreatorTests : IClassFixture<EOSFixture>
+    public class SessionCreatorTests
     {
+        [Fact(Timeout = 5000)] //, Skip = "Skipped - creating EOSSDKService triggers EOS SDK loading")]
+        public async Task CreateSessionAsync_WithNullMatch_ShouldThrowArgumentNullException()
+        {
+            // Arrange - Create a session creator without needing EOS initialized
+            var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+            var logger = loggerFactory.CreateLogger<EOSSessionCreator>();
+            var eosConfig = new EOSConfig();
+            var eosOptions = Options.Create(eosConfig);
+            var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
+            var eosService = new EOSSDKService(eosLogger, eosOptions);
+            var sessionCreator = new EOSSessionCreator(logger, eosService);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await sessionCreator.CreateSessionAsync(null!)
+            );
+        }
+
+        [Fact(Timeout = 5000)] //, Skip = "Skipped - creating EOSSDKService triggers EOS SDK loading")]
+        public async Task CreateSessionAsync_WithEmptyRequests_ShouldThrowArgumentException()
+        {
+            // Arrange - Create a session creator without needing EOS initialized
+            var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+            var logger = loggerFactory.CreateLogger<EOSSessionCreator>();
+            var eosConfig = new EOSConfig();
+            var eosOptions = Options.Create(eosConfig);
+            var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
+            var eosService = new EOSSDKService(eosLogger, eosOptions);
+            var sessionCreator = new EOSSessionCreator(logger, eosService);
+
+            var match = new Match(new List<MatchRequest>());
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () => await sessionCreator.CreateSessionAsync(match)
+            );
+        }
+
+        [Fact(Timeout = 5000)] //, Skip = "Skipped - creating EOSSDKService triggers EOS SDK loading")]
+        public async Task CreateSessionAsync_WithNullRequests_ShouldThrowArgumentException()
+        {
+            // Arrange - Create a session creator without needing EOS initialized
+            var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+            var logger = loggerFactory.CreateLogger<EOSSessionCreator>();
+            var eosConfig = new EOSConfig();
+            var eosOptions = Options.Create(eosConfig);
+            var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
+            var eosService = new EOSSDKService(eosLogger, eosOptions);
+            var sessionCreator = new EOSSessionCreator(logger, eosService);
+
+            var match = new Match(null!);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () => await sessionCreator.CreateSessionAsync(match)
+            );
+        }
+    }
+
+    /// <summary>
+    /// Integration tests for SessionCreator that require EOS SDK initialization
+    /// These tests are SKIPPED by default to avoid slow test runs.
+    /// 
+    /// IMPORTANT: Sessions created during tests will disappear from the EOS portal after the test completes.
+    /// This is expected behavior - when the EOS Platform is disposed (via EOSFixture.Dispose), 
+    /// all sessions created by that platform instance are automatically destroyed by EOS.
+    /// In production, sessions persist as long as the matchmaking service is running.
+    /// 
+    /// To run these tests manually:
+    /// 1. Ensure you have valid EOS credentials in .env file
+    /// 2. Uncomment the tests below
+    /// 3. Run: dotnet test --filter "FullyQualifiedName~SessionCreatorIntegrationTests"
+    /// </summary>
+    public class SessionCreatorIntegrationTests : IClassFixture<EOSFixture>
+    {
+        // Integration tests are commented out to prevent EOS SDK initialization during normal test runs
+        // Uncomment these tests when you want to run integration tests manually
+        
         private readonly ITestOutputHelper _output;
         private readonly EOSFixture _eosFixture;
 
-        public SessionCreatorTests(ITestOutputHelper output, EOSFixture eosFixture)
+        public SessionCreatorIntegrationTests(ITestOutputHelper output, EOSFixture eosFixture)
         {
             _output = output;
             _eosFixture = eosFixture;
@@ -105,14 +245,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             var loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole();
-                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.AddProvider(new XunitLoggerProvider(_output));
+                builder.SetMinimumLevel(LogLevel.Trace); // Capture all log levels
             });
 
             var logger = loggerFactory.CreateLogger<EOSSessionCreator>();
             return new EOSSessionCreator(logger, _eosFixture.EOSService);
         }
 
-        [Fact(Timeout = 10000)] // 10 second timeout
+        [Fact(Timeout = 10000)]
+        [Trait("Category", "Integration")]
         public async Task CreateSessionAsync_WithValidMatch_ShouldCreateSession()
         {
             // Skip if EOS is not initialized
@@ -158,7 +300,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             _output.WriteLine($"  https://dev.epicgames.com/portal/");
         }
 
-        [Fact(Timeout = 10000)] // 10 second timeout
+        [Fact(Timeout = 10000)]
+        [Trait("Category", "Integration")]
         public async Task CreateSessionAsync_WithMultiplePlayers_ShouldCreateSession()
         {
             // Skip if EOS is not initialized
@@ -193,63 +336,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             _output.WriteLine($"✓ 4-player session created successfully!");
             _output.WriteLine($"  Session ID: {sessionInfo.SessionId}");
         }
-
-        [Fact(Timeout = 5000)] // 5 second timeout
-        public async Task CreateSessionAsync_WithNullMatch_ShouldThrowArgumentNullException()
-        {
-            // Arrange - Create a session creator without needing EOS initialized
-            var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-            var logger = loggerFactory.CreateLogger<EOSSessionCreator>();
-            var eosConfig = new EOSConfig();
-            var eosOptions = Options.Create(eosConfig);
-            var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
-            var eosService = new EOSSDKService(eosLogger, eosOptions);
-            var sessionCreator = new EOSSessionCreator(logger, eosService);
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await sessionCreator.CreateSessionAsync(null!)
-            );
-        }
-
-        [Fact(Timeout = 5000)] // 5 second timeout
-        public async Task CreateSessionAsync_WithEmptyRequests_ShouldThrowArgumentException()
-        {
-            // Arrange - Create a session creator without needing EOS initialized
-            var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-            var logger = loggerFactory.CreateLogger<EOSSessionCreator>();
-            var eosConfig = new EOSConfig();
-            var eosOptions = Options.Create(eosConfig);
-            var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
-            var eosService = new EOSSDKService(eosLogger, eosOptions);
-            var sessionCreator = new EOSSessionCreator(logger, eosService);
-
-            var match = new Match(new List<MatchRequest>());
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(
-                async () => await sessionCreator.CreateSessionAsync(match)
-            );
-        }
-
-        [Fact(Timeout = 5000)] // 5 second timeout
-        public async Task CreateSessionAsync_WithNullRequests_ShouldThrowArgumentException()
-        {
-            // Arrange - Create a session creator without needing EOS initialized
-            var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-            var logger = loggerFactory.CreateLogger<EOSSessionCreator>();
-            var eosConfig = new EOSConfig();
-            var eosOptions = Options.Create(eosConfig);
-            var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
-            var eosService = new EOSSDKService(eosLogger, eosOptions);
-            var sessionCreator = new EOSSessionCreator(logger, eosService);
-
-            var match = new Match(null!);
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(
-                async () => await sessionCreator.CreateSessionAsync(match)
-            );
-        }
+        
     }
 }

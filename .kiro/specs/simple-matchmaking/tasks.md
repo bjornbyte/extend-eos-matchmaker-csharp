@@ -83,18 +83,19 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - **Property 6: Session Creation with Request Identifiers**
     - **Validates: Requirements 4.1, 4.2**
 
-- [ ] 9. Implement Notifier Interface
-  - [ ] 9.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/Notifier.cs` with INotifier interface and LoggingNotifier
+- [x] 9. Implement Notifier Interface
+  - [x] 9.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/Notifier.cs` with INotifier interface and LoggingNotifier
     - Define INotifier interface with NotifyMatchAsync method
     - Implement LoggingNotifier that logs match events (default no-op)
     - _Requirements: 8.1, 8.2, 8.3_
+    - **TDD Completed**: RED phase verified (compilation errors for missing types), GREEN phase verified (all 6 tests passed)
 
   - [ ]* 9.2 Write property test for notifier invocation
     - **Property 14: Notifier Receives Complete Match Information**
     - **Validates: Requirements 8.1, 8.3**
 
-- [ ] 10. Implement Match Maker
-  - [ ] 10.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchMaker.cs` with IMatchMaker interface and implementation
+- [-] 10. Implement Match Maker
+  - [x] 10.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchMaker.cs` with IMatchMaker interface and implementation
     - Define MatchMakerConfig with MatchSize, TickInterval, RequestTimeout
     - Implement IHostedService for background processing
     - Implement TryMatchAsync that creates matches from oldest requests
@@ -113,15 +114,16 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - **Property 13: Expiration Updates Status and Removes from Pool**
     - **Validates: Requirements 7.1, 7.3**
 
-- [ ] 11. Checkpoint - Ensure core components work
+- [-] 11. Checkpoint - Ensure core components work
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 12. Implement Matchmaking Service
-  - [ ] 12.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchmakingService.cs` with gRPC service implementation
+- [-] 12. Implement Matchmaking Service
+  - [x] 12.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchmakingService.cs` with gRPC service implementation
     - Implement SubmitMatchRequest: extract user ID from context, check for duplicates, add to pool, return request ID
     - Implement GetMatchStatus: lookup request, return status and session details if matched
     - Implement CancelMatchRequest: validate pending status, remove from pool, return confirmation
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3_
+    - **TDD Completed**: RED phase verified (ServerCallContext mocking errors - "Non-overridable members may not be used in setup expressions"), GREEN phase verified (all 8 tests passed after creating TestServerCallContext helper class)
 
   - [ ]* 12.2 Write property test for duplicate user rejection
     - **Property 3: Duplicate User Rejection with Existing Request ID**

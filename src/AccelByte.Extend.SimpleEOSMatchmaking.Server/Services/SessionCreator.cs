@@ -82,11 +82,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 
                 _logger.LogInformation("Creating EOS session: SessionName={SessionName}, SessionId={SessionId}, PlayerCount={PlayerCount}",
                     sessionName, sessionId, match.Requests.Count);
-
-                // Get the first user as the session host (for ProductUserId)
-                // In a real implementation, you'd need to convert the user ID to a ProductUserId
-                // For now, we'll use a placeholder approach
-                var hostUserId = match.Requests[0].UserId;
                 
                 // Create session modification handle
                 var createOptions = new CreateSessionModificationOptions
@@ -94,7 +89,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     SessionName = sessionName,
                     BucketId = "default",
                     MaxPlayers = (uint)match.Requests.Count,
-                    LocalUserId = null, // This should be set to the host's ProductUserId in production
                     PresenceEnabled = false,
                     SessionId = sessionId,
                     SanctionsEnabled = false,
@@ -168,7 +162,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     while (!tcs.Task.IsCompleted && (DateTime.UtcNow - startTime) < timeout)
                     {
                         platform.Tick();
-                        await Task.Delay(16); // ~60 FPS tick rate
+                        await Task.Delay(100); 
                     }
 
                     if (!tcs.Task.IsCompleted)
