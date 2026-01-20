@@ -26,15 +26,14 @@ public class HeaderUserIdInterceptor : Interceptor
     {
         var userIdHeader = context.RequestHeaders.GetValue(GrpcConstants.UserIdKey);
         
-        if (!string.IsNullOrEmpty(userIdHeader))
+        if (string.IsNullOrEmpty(userIdHeader))
         {
-            context.UserState.Add(GrpcConstants.UserIdKey, userIdHeader);
-            _logger.LogDebug("Extracted user ID from header: {UserId}", userIdHeader);
+            _logger.LogWarning("Missing or empty user-id header");
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "User-id header is required"));
         }
-        else
-        {
-            _logger.LogDebug("No user-id header found or header is empty");
-        }
+        
+        context.UserState.Add(GrpcConstants.UserIdKey, userIdHeader);
+        _logger.LogDebug("Extracted user ID from header: {UserId}", userIdHeader);
     }
 
     public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(

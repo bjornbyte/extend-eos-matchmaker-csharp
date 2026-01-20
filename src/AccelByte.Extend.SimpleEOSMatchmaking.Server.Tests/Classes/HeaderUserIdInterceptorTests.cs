@@ -56,30 +56,28 @@ public class HeaderUserIdInterceptorTests
     }
 
     [Fact]
-    public async Task UnaryServerHandler_WithoutUserIdHeader_DoesNotSetUserState()
+    public async Task UnaryServerHandler_WithoutUserIdHeader_ThrowsUnauthenticated()
     {
         // Arrange
         var requestHeaders = new Metadata(); // No user-id header
         var mockContext = new TestServerCallContext(requestHeaders);
         var request = new object();
-        var expectedResponse = new object();
         
         UnaryServerMethod<object, object> continuation = (req, ctx) =>
         {
-            // Verify user-id was NOT added to UserState
-            Assert.False(ctx.UserState.ContainsKey(GrpcConstants.UserIdKey));
-            return Task.FromResult(expectedResponse);
+            return Task.FromResult(new object());
         };
 
-        // Act
-        var response = await _interceptor.UnaryServerHandler(request, mockContext, continuation);
-
-        // Assert
-        Assert.Equal(expectedResponse, response);
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            () => _interceptor.UnaryServerHandler(request, mockContext, continuation));
+        
+        Assert.Equal(StatusCode.Unauthenticated, exception.StatusCode);
+        Assert.Contains("user-id", exception.Status.Detail.ToLower());
     }
 
     [Fact]
-    public async Task UnaryServerHandler_WithEmptyUserIdHeader_DoesNotSetUserState()
+    public async Task UnaryServerHandler_WithEmptyUserIdHeader_ThrowsUnauthenticated()
     {
         // Arrange
         var requestHeaders = new Metadata
@@ -88,20 +86,18 @@ public class HeaderUserIdInterceptorTests
         };
         var mockContext = new TestServerCallContext(requestHeaders);
         var request = new object();
-        var expectedResponse = new object();
         
         UnaryServerMethod<object, object> continuation = (req, ctx) =>
         {
-            // Verify user-id was NOT added to UserState
-            Assert.False(ctx.UserState.ContainsKey(GrpcConstants.UserIdKey));
-            return Task.FromResult(expectedResponse);
+            return Task.FromResult(new object());
         };
 
-        // Act
-        var response = await _interceptor.UnaryServerHandler(request, mockContext, continuation);
-
-        // Assert
-        Assert.Equal(expectedResponse, response);
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            () => _interceptor.UnaryServerHandler(request, mockContext, continuation));
+        
+        Assert.Equal(StatusCode.Unauthenticated, exception.StatusCode);
+        Assert.Contains("user-id", exception.Status.Detail.ToLower());
     }
 
     // Helper class to create a testable ServerCallContext
