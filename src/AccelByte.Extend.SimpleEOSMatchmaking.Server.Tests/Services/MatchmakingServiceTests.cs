@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Grpc.Core;
 using Moq;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Services;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 using Microsoft.Extensions.Logging;
@@ -202,10 +203,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         {
             var metadata = new Metadata
             {
-                { "user-id", userId }
+                { GrpcConstants.UserIdKey, userId }
             };
             
-            return new TestServerCallContext(metadata);
+            var context = new TestServerCallContext(metadata);
+            // Simulate what the HeaderUserIdInterceptor does
+            context.UserState.Add(GrpcConstants.UserIdKey, userId);
+            return context;
         }
     }
 

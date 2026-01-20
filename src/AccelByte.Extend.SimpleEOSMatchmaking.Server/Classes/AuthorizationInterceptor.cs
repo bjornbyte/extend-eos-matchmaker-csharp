@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
-
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 using Microsoft.Extensions.Logging;
 
 using Grpc.Core;
@@ -578,6 +578,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
 
             permission = NamespacePlaceholderRegex.Replace(permission, (m) => _ABProvider.Sdk.Namespace);
             ValidateToken(token, permission, action);
+            if (payload.Sub != null) context.UserState.Add(GrpcConstants.UserIdKey, payload.Sub);
         }
 
         private void HandleAuthentication(ServerCallContext context)

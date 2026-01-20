@@ -123,6 +123,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 opts.Interceptors.Add<ExceptionHandlingInterceptor>();
                 if (enableAuthorization)
                     opts.Interceptors.Add<AuthorizationInterceptor>();
+                else
+                    opts.Interceptors.Add<HeaderUserIdInterceptor>();
                 opts.Interceptors.Add<DebugLoggerServerInterceptor>();                
             });
             builder.Services.AddGrpcReflection();

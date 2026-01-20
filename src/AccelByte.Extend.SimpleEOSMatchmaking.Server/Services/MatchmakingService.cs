@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
@@ -139,30 +140,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         /// </summary>
         private string ExtractUserIdFromContext(ServerCallContext context)
         {
-            // Try to get user ID from metadata first (for testing)
-            var userIdFromMetadata = context.RequestHeaders.GetValue("user-id");
-            if (!string.IsNullOrEmpty(userIdFromMetadata))
+            if (context.UserState.TryGetValue(GrpcConstants.UserIdKey, out var userIdValue))
             {
-                return userIdFromMetadata;
+                return userIdValue as string ?? throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid user ID"));
             }
 
-            // In production, extract from authorization token
-            var authHeader = context.RequestHeaders.GetValue("authorization");
-            if (string.IsNullOrEmpty(authHeader))
-            {
-                throw new RpcException(new Status(StatusCode.Unauthenticated, "Authorization required"));
-            }
-
-            // Parse Bearer token
-            var parts = authHeader.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length != 2 || parts[0] != "Bearer")
-            {
-                throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid authorization header"));
-            }
-
-            // Note: In production, this would use AccelByte SDK to parse the token
-            // For now, we'll throw an error if we can't get it from metadata
-            throw new RpcException(new Status(StatusCode.Unauthenticated, "Unable to extract user ID"));
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Missing user ID"));
         }
 
         /// <summary>
