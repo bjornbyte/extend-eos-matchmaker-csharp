@@ -458,3 +458,7 @@ $RECYCLE.BIN/
 .env
 gateway/grpc_gateway
 /EOS-SDK/
+
+# Generated proto artifacts
+gateway/pkg/pb/
+gateway/apidocs/*.swagger.json

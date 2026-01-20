@@ -152,7 +152,6 @@ COPY --from=grpc-gateway-builder /output/$TARGETOS/$TARGETARCH/grpc_gateway .
 
 # Copy apidocs from stage 1.
 COPY --from=proto-builder /build/gateway/apidocs ./apidocs
-RUN rm -fv apidocs/service.swagger.json
 
 # Copy gateway third party files.
 COPY gateway/third_party ./third_party
