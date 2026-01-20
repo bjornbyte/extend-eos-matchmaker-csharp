@@ -226,54 +226,52 @@ public interface INotifier
 }
 ```
 
-**Custom Implementation Examples:**
+**Possible Integration Services:**
+- Push notification services (Firebase Cloud Messaging, Apple Push Notification Service)
+- WebSocket servers for real-time client notifications
+- AccelByte Lobby service for in-game notifications
+- Message queues (RabbitMQ, Azure Service Bus) for asynchronous processing
+- Webhook endpoints for custom game server integration
+- Discord/Slack bots for community notifications
 
-1. **Push Notifications:**
+**Example: Webhook Implementation**
+
+A webhook implementation could look something like this:
+
 ```csharp
-public class PushNotifier : INotifier
+public class WebhookNotifier : INotifier
 {
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<WebhookNotifier> _logger;
+    private readonly string _webhookUrl;
+
     public async Task NotifyMatchAsync(SessionInfo sessionInfo)
     {
-        foreach (var userId in sessionInfo.UserIds)
+        // Send notifications to all players in parallel
+        var notificationTasks = sessionInfo.UserIds.Select(userId =>
+            SendNotificationAsync(userId, sessionInfo.SessionId)
+        );
+
+        await Task.WhenAll(notificationTasks);
+    }
+
+    private async Task SendNotificationAsync(string userId, string sessionId)
+    {
+        try
         {
-            await _pushService.SendAsync(userId, new {
+            var payload = new
+            {
                 type = "match_found",
-                session_id = sessionInfo.SessionId
-            });
-        }
-    }
-}
-```
+                user_id = userId,
+                session_id = sessionId,
+                timestamp = DateTime.UtcNow
+            };
 
-2. **WebSocket Notifications:**
-```csharp
-public class WebSocketNotifier : INotifier
-{
-    public async Task NotifyMatchAsync(SessionInfo sessionInfo)
-    {
-        foreach (var userId in sessionInfo.UserIds)
-        {
-            await _wsManager.SendToUserAsync(userId, new {
-                event = "match_ready",
-                session_id = sessionInfo.SessionId,
-                players = sessionInfo.UserIds
-            });
+            await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
         }
-    }
-}
-```
-
-3. **AccelByte Lobby Integration:**
-```csharp
-public class LobbyNotifier : INotifier
-{
-    public async Task NotifyMatchAsync(SessionInfo sessionInfo)
-    {
-        foreach (var userId in sessionInfo.UserIds)
+        catch (Exception ex)
         {
-            await _lobbyService.SendNotificationAsync(userId, 
-                "matchmaking", 
-                sessionInfo.SessionId);
+            _logger.LogError(ex, "Failed to notify user {UserId}", userId);
         }
     }
 }
@@ -326,7 +324,7 @@ builder.Services.AddSingleton<INotifier, YourCustomNotifier>();
 
 ### SessionInfo
 
-**Location:** `Services/SessionCreator.cs`
+**Location:** `Model/SessionInfo.cs`
 
 **Purpose:** Information about a created EOS session.
 
