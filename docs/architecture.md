@@ -415,13 +415,13 @@ The matcher uses a **FIFO (First-In-First-Out)** algorithm to ensure fairness:
                            │          │
                 ┌──────────┼──────────┴─────────┐
                 │          │                    │
-         CancelMatchRequest│              Session
-                │          │              Creation
-                │          │               Failed
+         CancelMatchRequest│                 Session
+                │          │                 Creation
+                │          │                 Failed
                 ▼          ▼                    │
-         ┌──────────┐  ┌─────────┐             │
-         │CANCELLED │  │ MATCHED │             │
-         └──────────┘  └─────────┘             │
+         ┌──────────┐  ┌─────────┐              │
+         │CANCELLED │  │ MATCHED │              │
+         └──────────┘  └─────────┘              │
                 │                               │
          RequestTimeout                         │
                 │                               │
@@ -517,106 +517,6 @@ PLUGIN_GRPC_SERVER_AUTH_ENABLED=false
 ```
 
 **Warning:** Only use this for local development. Never disable in production.
-
----
-
-## Architecture Decisions
-
-### In-Memory Storage
-
-**Decision:** Use in-memory `MatchPool` instead of database.
-
-**Rationale:**
-- Matchmaking requests are ephemeral (expire after 60 seconds)
-- High read/write frequency (every tick)
-- Low latency requirements
-- No need for persistence across restarts
-- Simpler implementation and deployment
-
-**Trade-offs:**
-- Requests lost on service restart (acceptable for matchmaking)
-- Limited to single instance (no horizontal scaling)
-- Memory usage grows with pending requests
-
-**Mitigation:**
-- Request timeout prevents unbounded growth
-- Suitable for moderate load (thousands of concurrent requests)
-- For high scale, consider Redis or distributed cache
-
-### FIFO Matching Algorithm
-
-**Decision:** Use simple FIFO matching instead of skill-based matching.
-
-**Rationale:**
-- Simplicity and predictability
-- Fairness (first come, first served)
-- No need for player skill data
-- Fast matching (no complex calculations)
-- Easy to understand and debug
-
-**Trade-offs:**
-- No skill balancing
-- No team composition
-- No region matching
-
-**Extensibility:**
-- Can be extended with metadata-based matching
-- Metadata field allows custom matching criteria
-- MatchMaker can be replaced with custom implementation
-
-### Background Matching Service
-
-**Decision:** Use background service with periodic ticking instead of event-driven matching.
-
-**Rationale:**
-- Predictable resource usage
-- Simple implementation
-- Easy to configure (tick interval)
-- Batches multiple matches per tick
-- Reduces EOS API calls
-
-**Trade-offs:**
-- Slight delay (up to tick interval)
-- Runs even when pool is empty
-
-**Configuration:**
-- Default 1 second tick interval
-- Configurable via `TickIntervalSeconds`
-
-### EOS Session Integration
-
-**Decision:** Create EOS sessions for all matches.
-
-**Rationale:**
-- Provides session infrastructure for games
-- Handles player connectivity
-- Supports session attributes for match metadata
-- Industry-standard solution
-
-**Trade-offs:**
-- Requires EOS account and configuration
-- Adds latency to matching (100-500ms)
-- Requires EOS SDK integration
-
-**Alternative:**
-- Could return match results without session creation
-- Games could create their own sessions
-
-### gRPC with REST Gateway
-
-**Decision:** Implement gRPC service with HTTP/JSON gateway.
-
-**Rationale:**
-- High performance binary protocol (gRPC)
-- Easy integration for web clients (REST)
-- Single implementation, dual protocols
-- Auto-generated Swagger documentation
-- Type-safe contracts (protobuf)
-
-**Trade-offs:**
-- More complex build process
-- Requires gateway layer
-- Larger deployment size
 
 ---
 
