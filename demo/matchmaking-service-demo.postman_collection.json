@@ -1,0 +1,286 @@
+{
+	"info": {
+		"_postman_id": "a8f3c4e1-5b2d-4a9e-b8c3-9d7e6f5a4b3c",
+		"name": "EOS Matchmaking Service Demo",
+		"description": "# Prerequisites\n\nThis collection requires an environment with the following variables:\n\n- `AB_BASE_URL` - AccelByte base URL (e.g., https://test.accelbyte.io)\n- `AB_NAMESPACE` - Your AccelByte namespace\n- `AB_CLIENT_ID` - IAM OAuth client ID\n- `AB_CLIENT_SECRET` - IAM OAuth client secret\n- `AB_USERNAME` - User's username (for user token)\n- `AB_PASSWORD` - User's password (for user token)\n- `EXTEND_APP_SERVICE_URL` - Matchmaking service URL (e.g., http://localhost:8000/eos-matchmaking)\n\n# Required Permissions\n\nThe IAM Client needs the following permissions:\n\n**For AGS Private Cloud:**\n- `ADMIN:NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]`\n\n**For AGS Shared Cloud:**\n- Matchmaking (Create, Read, Delete)\n\n# Instructions\n\n1. **Get User Access Token**: Run `10-get-user-access-token` to authenticate\n2. **Submit Match Request**: Run `20-submit-match-request` to join matchmaking\n3. **Check Match Status**: Run `30-get-match-status` to check if matched\n4. **Cancel Request** (optional): Run `40-cancel-match-request` to cancel\n\n# Testing Scenarios\n\n## Scenario 1: Successful Match (2 Players)\n\n1. Get access tokens for two different users\n2. Submit match requests from both users\n3. Wait 1-2 seconds for the matcher to run\n4. Check status for both requests - should show MATCHED with session details\n\n## Scenario 2: Request Timeout\n\n1. Submit a match request\n2. Wait for timeout period (default: 60 seconds)\n3. Check status - should show EXPIRED\n\n## Scenario 3: Cancel Request\n\n1. Submit a match request\n2. Immediately cancel it\n3. Check status - should show CANCELLED\n\nFor more details, see the [Testing Guide](../docs/testing_guide.md).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "19336018"
+	},
+	"item": [
+		{
+			"name": "10-get-user-access-token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Store user access token in collection variable\", function () {",
+							"    var responseJson = pm.response.json();",
+							"    ",
+							"    if (responseJson.access_token !== undefined) {",
+							"        pm.collectionVariables.set('USER_ACCESS_TOKEN', responseJson.access_token)",
+							"    }",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{AB_CLIENT_SECRET}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{AB_CLIENT_ID}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "text"
+						},
+						{
+							"key": "username",
+							"value": "{{AB_USERNAME}}",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "{{AB_PASSWORD}}",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{AB_BASE_URL}}/iam/v3/oauth/token",
+					"host": [
+						"{{AB_BASE_URL}}"
+					],
+					"path": [
+						"iam",
+						"v3",
+						"oauth",
+						"token"
+					]
+				},
+				"description": "Get a user access token for matchmaking requests. The matchmaking service requires user authentication."
+			},
+			"response": []
+		},
+		{
+			"name": "20-submit-match-request",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Store request ID in collection variable\", function () {",
+							"    var responseJson = pm.response.json();",
+							"    ",
+							"    if (responseJson.requestId !== undefined) {",
+							"        pm.collectionVariables.set('REQUEST_ID', responseJson.requestId)",
+							"        console.log('Request ID: ' + responseJson.requestId);",
+							"    }",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{USER_ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"metadata\": {\n    \"region\": \"us-west\",\n    \"skill_level\": \"intermediate\"\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{EXTEND_APP_SERVICE_URL}}/matchmaking/v1/request",
+					"host": [
+						"{{EXTEND_APP_SERVICE_URL}}"
+					],
+					"path": [
+						"matchmaking",
+						"v1",
+						"request"
+					]
+				},
+				"description": "Submit a new matchmaking request. Returns a unique request ID that can be used to check status or cancel the request.\n\nThe metadata field is optional and can contain custom key-value pairs for future matching logic extensions."
+			},
+			"response": []
+		},
+		{
+			"name": "30-get-match-status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Display match status\", function () {",
+							"    var responseJson = pm.response.json();",
+							"    ",
+							"    console.log('Status: ' + responseJson.status);",
+							"    ",
+							"    if (responseJson.status === 'MATCHED') {",
+							"        console.log('Session ID: ' + responseJson.sessionId);",
+							"        console.log('Matched Users: ' + responseJson.matchedUserIds);",
+							"        console.log('Matched Requests: ' + responseJson.matchedRequestIds);",
+							"    }",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{USER_ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{EXTEND_APP_SERVICE_URL}}/matchmaking/v1/request/{{REQUEST_ID}}",
+					"host": [
+						"{{EXTEND_APP_SERVICE_URL}}"
+					],
+					"path": [
+						"matchmaking",
+						"v1",
+						"request",
+						"{{REQUEST_ID}}"
+					]
+				},
+				"description": "Get the current status of a match request.\n\nPossible statuses:\n- PENDING: Waiting for other players\n- MATCHED: Successfully matched, includes session details\n- EXPIRED: Request timed out (default: 60 seconds)\n- CANCELLED: Request was cancelled by user"
+			},
+			"response": []
+		},
+		{
+			"name": "40-cancel-match-request",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Cancellation successful\", function () {",
+							"    var responseJson = pm.response.json();",
+							"    pm.expect(responseJson.success).to.be.true;",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{USER_ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{EXTEND_APP_SERVICE_URL}}/matchmaking/v1/request/{{REQUEST_ID}}",
+					"host": [
+						"{{EXTEND_APP_SERVICE_URL}}"
+					],
+					"path": [
+						"matchmaking",
+						"v1",
+						"request",
+						"{{REQUEST_ID}}"
+					]
+				},
+				"description": "Cancel a pending match request. Only works if the request status is PENDING.\n\nReturns an error if:\n- Request ID doesn't exist\n- Request is already MATCHED, EXPIRED, or CANCELLED"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "USER_ACCESS_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "REQUEST_ID",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

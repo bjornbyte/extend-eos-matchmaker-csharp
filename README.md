@@ -187,12 +187,14 @@ dotnet test src/extend-service-extension-server.sln
 ### Manual Testing
 
 1. **Get access token** using [demo/get-access-token.postman_collection.json](demo/get-access-token.postman_collection.json)
-2. **Open Swagger UI** at `http://localhost:8000/eos-matchmaking/apidocs/`
-3. **Authorize** with `Bearer <access_token>`
-4. **Test endpoints:**
-   - Submit match request
-   - Check match status
-   - Cancel match request
+2. **Test matchmaking endpoints** using [demo/matchmaking-service-demo.postman_collection.json](demo/matchmaking-service-demo.postman_collection.json)
+3. **Or use Swagger UI** at `http://localhost:8000/eos-matchmaking/apidocs/`
+4. **Authorize** with `Bearer <access_token>`
+5. **Test scenarios:**
+   - Submit match requests from multiple users
+   - Check match status (should show MATCHED when enough players join)
+   - Cancel pending requests
+   - Test request timeout (wait 60 seconds)
 
 > See [Testing Guide](docs/testing_guide.md) for comprehensive testing instructions and scenarios.
 
