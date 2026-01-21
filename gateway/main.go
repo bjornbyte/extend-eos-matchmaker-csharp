@@ -129,9 +129,10 @@ func main() {
 	}
 
 	// Start the gRPC-Gateway HTTP server
+	// Listen on [::] for dual-stack IPv6+IPv4 support
 	go func() {
 		swaggerDir := "apidocs" // Path to swagger directory
-		grpcGatewayHTTPServer := newGRPCGatewayHTTPServer(fmt.Sprintf(":%d", *gatewayHttpPort), grpcGateway, logrus.New(), swaggerDir)
+		grpcGatewayHTTPServer := newGRPCGatewayHTTPServer(fmt.Sprintf("[::]:%d", *gatewayHttpPort), grpcGateway, logrus.New(), swaggerDir)
 		if err := grpcGatewayHTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logrus.Fatalf("Failed to run gRPC-Gateway HTTP server: %v", err)
 		}		
