@@ -70,5 +70,59 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             Assert.Equal(innerException, exception.InnerException);
             Assert.Contains("Session failed", exception.Message);
         }
+
+        [Fact]
+        public void NoAvailableSessionsException_ShouldStoreSessionsSearched()
+        {
+            // Arrange
+            var sessionsSearched = 5;
+
+            // Act
+            var exception = new NoAvailableSessionsException(sessionsSearched);
+
+            // Assert
+            Assert.Equal(sessionsSearched, exception.SessionsSearched);
+        }
+
+        [Fact]
+        public void NoAvailableSessionsException_MessageShouldIncludeSessionsSearched()
+        {
+            // Arrange
+            var sessionsSearched = 10;
+
+            // Act
+            var exception = new NoAvailableSessionsException(sessionsSearched);
+
+            // Assert
+            Assert.Contains("No available sessions found", exception.Message);
+            Assert.Contains(sessionsSearched.ToString(), exception.Message);
+        }
+
+        [Fact]
+        public void SessionClaimFailedException_ShouldStoreRetryAttempts()
+        {
+            // Arrange
+            var retryAttempts = 3;
+
+            // Act
+            var exception = new SessionClaimFailedException(retryAttempts);
+
+            // Assert
+            Assert.Equal(retryAttempts, exception.RetryAttempts);
+        }
+
+        [Fact]
+        public void SessionClaimFailedException_MessageShouldIncludeRetryAttempts()
+        {
+            // Arrange
+            var retryAttempts = 5;
+
+            // Act
+            var exception = new SessionClaimFailedException(retryAttempts);
+
+            // Assert
+            Assert.Contains("Failed to claim session", exception.Message);
+            Assert.Contains(retryAttempts.ToString(), exception.Message);
+        }
     }
 }

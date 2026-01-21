@@ -75,4 +75,32 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
         {
         }
     }
+
+    /// <summary>
+    /// Exception thrown when no available sessions are found
+    /// </summary>
+    public class NoAvailableSessionsException : Exception
+    {
+        public int SessionsSearched { get; }
+
+        public NoAvailableSessionsException(int sessionsSearched)
+            : base($"No available sessions found after searching {sessionsSearched} sessions")
+        {
+            SessionsSearched = sessionsSearched;
+        }
+    }
+
+    /// <summary>
+    /// Exception thrown when session claiming fails after maximum retry attempts
+    /// </summary>
+    public class SessionClaimFailedException : Exception
+    {
+        public int RetryAttempts { get; }
+
+        public SessionClaimFailedException(int retryAttempts)
+            : base($"Failed to claim session after {retryAttempts} retry attempts")
+        {
+            RetryAttempts = retryAttempts;
+        }
+    }
 }
