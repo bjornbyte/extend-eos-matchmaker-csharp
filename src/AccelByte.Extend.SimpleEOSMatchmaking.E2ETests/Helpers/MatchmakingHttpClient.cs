@@ -68,7 +68,7 @@ public class MatchmakingHttpClient : IDisposable
         };
 
         var response = await _httpClient.PostAsJsonAsync(
-            "matchmaking/v1/request",
+            "v1/request",
             request,
             cancellationToken);
 
@@ -94,7 +94,7 @@ public class MatchmakingHttpClient : IDisposable
         try
         {
             var response = await _httpClient.GetAsync(
-                $"matchmaking/v1/request/{requestId}",
+                $"v1/request/{requestId}",
                 cancellationToken);
 
             // Service returns 500 for not found (should be 404, but that's the current behavior)
@@ -132,7 +132,7 @@ public class MatchmakingHttpClient : IDisposable
         var stopwatch = Stopwatch.StartNew();
         
         var response = await _httpClient.DeleteAsync(
-            $"matchmaking/v1/request/{requestId}",
+            $"v1/request/{requestId}",
             cancellationToken);
 
         response.EnsureSuccessStatusCode();

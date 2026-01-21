@@ -37,7 +37,7 @@ Tests can be configured via environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `E2E_SERVICE_URL` | Base URL of the matchmaking service | `http://localhost:8000/eos-matchmaking` |
+| `E2E_SERVICE_URL` | Base URL of the matchmaking service | `http://localhost:8000/matchmaking` |
 | `E2E_AUTH_MODE` | Authentication mode: `UserId` or `Bearer` | `UserId` |
 | `E2E_BEARER_TOKEN` | Bearer token (required if `E2E_AUTH_MODE=Bearer`) | - |
 | `E2E_USER_ID` | Default user ID for tests | `test-user` |
@@ -63,7 +63,7 @@ dotnet test
 ### Example: Testing against a remote service
 
 ```bash
-$env:E2E_SERVICE_URL="https://your-service.example.com/eos-matchmaking"
+$env:E2E_SERVICE_URL="https://your-service.example.com/matchmaking"
 $env:E2E_AUTH_MODE="Bearer"
 $env:E2E_BEARER_TOKEN="your-access-token"
 
@@ -113,12 +113,12 @@ The E2E test suite covers:
 
 - name: Wait for Service
   run: |
-    timeout 30 bash -c 'until curl -f http://localhost:8000/eos-matchmaking/apidocs/; do sleep 1; done'
+    timeout 30 bash -c 'until curl -f http://localhost:8000/matchmaking/apidocs/; do sleep 1; done'
 
 - name: Run E2E Tests
   run: dotnet test --filter "Category=E2E"
   env:
-    E2E_SERVICE_URL: http://localhost:8000/eos-matchmaking
+    E2E_SERVICE_URL: http://localhost:8000/matchmaking
     E2E_AUTH_MODE: UserId
 
 - name: Stop Service
@@ -130,7 +130,7 @@ The E2E test suite covers:
 ### Service Not Running
 
 ```
-InvalidOperationException: Service is not running at http://localhost:8000/eos-matchmaking
+InvalidOperationException: Service is not running at http://localhost:8000/matchmaking
 ```
 
 **Solution:** Start the service with `docker compose up --build`

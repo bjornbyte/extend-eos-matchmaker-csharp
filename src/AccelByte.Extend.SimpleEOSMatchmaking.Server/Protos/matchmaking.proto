@@ -29,7 +29,7 @@ service Matchmaking {
   // Submit a new match request
   rpc SubmitMatchRequest(SubmitMatchRequestRequest) returns (SubmitMatchRequestResponse) {
     option (google.api.http) = {
-      post: "/matchmaking/v1/request"
+      post: "/v1/request"
       body: "*"
     };
     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
@@ -47,7 +47,7 @@ service Matchmaking {
   // Get the status of a match request
   rpc GetMatchStatus(GetMatchStatusRequest) returns (GetMatchStatusResponse) {
     option (google.api.http) = {
-      get: "/matchmaking/v1/request/{request_id}"
+      get: "/v1/request/{request_id}"
     };
     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
       security: {
@@ -64,7 +64,7 @@ service Matchmaking {
   // Cancel a pending match request
   rpc CancelMatchRequest(CancelMatchRequestRequest) returns (CancelMatchRequestResponse) {
     option (google.api.http) = {
-      delete: "/matchmaking/v1/request/{request_id}"
+      delete: "/v1/request/{request_id}"
     };
     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
       security: {

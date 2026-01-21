@@ -6,10 +6,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.E2ETests.Configuration;
 public class E2ETestConfig
 {
     /// <summary>
-    /// Base URL of the matchmaking service (e.g., http://127.0.0.1:8000/eos-matchmaking)
+    /// Base URL of the matchmaking service (e.g., http://127.0.0.1:8000/matchmaking)
     /// Note: Using 127.0.0.1 instead of localhost because Docker port mapping only exposes IPv4
     /// </summary>
-    public string ServiceBaseUrl { get; set; } = "http://127.0.0.1:8000/eos-matchmaking";
+    public string ServiceBaseUrl { get; set; } = "http://127.0.0.1:8000/matchmaking";
 
     /// <summary>
     /// Authentication mode: "Bearer" or "UserId"

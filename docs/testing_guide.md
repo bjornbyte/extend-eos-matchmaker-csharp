@@ -15,7 +15,7 @@ This guide provides comprehensive instructions for manual end-to-end testing of 
   docker compose up --build
   ```
 - **Service URL**: `http://localhost:8000`
-- **Swagger UI**: `http://localhost:8000/eos-matchmaking/apidocs/`
+- **Swagger UI**: `http://localhost:8000/matchmaking/apidocs/`
 
 ### 2. AccelByte Setup
 
@@ -97,7 +97,7 @@ You need the following AccelByte resources:
 **Request:** `POST /matchmaking/v1/request`
 
 - **Method:** POST
-- **Endpoint:** `http://localhost:8000/eos-matchmaking/matchmaking/v1/request`
+- **Endpoint:** `http://localhost:8000/matchmaking/v1/request`
 - **Auth:** Bearer Token (access_token from Step 1)
 - **Headers:**
   - `Authorization: Bearer <access_token>`
@@ -131,7 +131,7 @@ You need the following AccelByte resources:
 **Request:** `GET /matchmaking/v1/request/{request_id}`
 
 - **Method:** GET
-- **Endpoint:** `http://localhost:8000/eos-matchmaking/matchmaking/v1/request/{request_id}`
+- **Endpoint:** `http://localhost:8000/matchmaking/v1/request/{request_id}`
 - **Auth:** Bearer Token
 - **Headers:**
   - `Authorization: Bearer <access_token>`
@@ -171,7 +171,7 @@ You need the following AccelByte resources:
 **Request:** `DELETE /matchmaking/v1/request/{request_id}`
 
 - **Method:** DELETE
-- **Endpoint:** `http://localhost:8000/eos-matchmaking/matchmaking/v1/request/{request_id}`
+- **Endpoint:** `http://localhost:8000/matchmaking/v1/request/{request_id}`
 - **Auth:** Bearer Token
 - **Headers:**
   - `Authorization: Bearer <access_token>`
@@ -193,7 +193,7 @@ You need the following AccelByte resources:
 
 ### Step 1: Open Swagger UI
 
-Navigate to `http://localhost:8000/eos-matchmaking/apidocs/`
+Navigate to `http://localhost:8000/matchmaking/apidocs/`
 
 ### Step 2: Authorize
 
@@ -429,5 +429,5 @@ After successful testing:
 
 For issues or questions:
 - Check service logs: `docker compose logs -f`
-- Review Swagger UI: `http://localhost:8000/eos-matchmaking/apidocs/`
+- Review Swagger UI: `http://localhost:8000/matchmaking/apidocs/`
 - Check documentation: [README](../README.md)

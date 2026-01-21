@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "a8f3c4e1-5b2d-4a9e-b8c3-9d7e6f5a4b3c",
 		"name": "EOS Matchmaking Service Demo",
-		"description": "# Prerequisites\n\nThis collection requires an environment with the following variables:\n\n- `AB_BASE_URL` - AccelByte base URL (e.g., https://test.accelbyte.io)\n- `AB_NAMESPACE` - Your AccelByte namespace\n- `AB_CLIENT_ID` - IAM OAuth client ID\n- `AB_CLIENT_SECRET` - IAM OAuth client secret\n- `AB_USERNAME` - User's username (for user token)\n- `AB_PASSWORD` - User's password (for user token)\n- `EXTEND_APP_SERVICE_URL` - Matchmaking service URL (e.g., http://localhost:8000/eos-matchmaking)\n\n# Required Permissions\n\nThe IAM Client needs the following permissions:\n\n**For AGS Private Cloud:**\n- `ADMIN:NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]`\n\n**For AGS Shared Cloud:**\n- Matchmaking (Create, Read, Delete)\n\n# Instructions\n\n1. **Get User Access Token**: Run `10-get-user-access-token` to authenticate\n2. **Submit Match Request**: Run `20-submit-match-request` to join matchmaking\n3. **Check Match Status**: Run `30-get-match-status` to check if matched\n4. **Cancel Request** (optional): Run `40-cancel-match-request` to cancel\n\n# Testing Scenarios\n\n## Scenario 1: Successful Match (2 Players)\n\n1. Get access tokens for two different users\n2. Submit match requests from both users\n3. Wait 1-2 seconds for the matcher to run\n4. Check status for both requests - should show MATCHED with session details\n\n## Scenario 2: Request Timeout\n\n1. Submit a match request\n2. Wait for timeout period (default: 60 seconds)\n3. Check status - should show EXPIRED\n\n## Scenario 3: Cancel Request\n\n1. Submit a match request\n2. Immediately cancel it\n3. Check status - should show CANCELLED\n\nFor more details, see the [Testing Guide](../docs/testing_guide.md).",
+		"description": "# Prerequisites\n\nThis collection requires an environment with the following variables:\n\n- `AB_BASE_URL` - AccelByte base URL (e.g., https://test.accelbyte.io)\n- `AB_NAMESPACE` - Your AccelByte namespace\n- `AB_CLIENT_ID` - IAM OAuth client ID\n- `AB_CLIENT_SECRET` - IAM OAuth client secret\n- `AB_USERNAME` - User's username (for user token)\n- `AB_PASSWORD` - User's password (for user token)\n- `EXTEND_APP_SERVICE_URL` - Matchmaking service URL (e.g., http://localhost:8000/matchmaking)\n\n# Required Permissions\n\nThe IAM Client needs the following permissions:\n\n**For AGS Private Cloud:**\n- `ADMIN:NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]`\n\n**For AGS Shared Cloud:**\n- Matchmaking (Create, Read, Delete)\n\n# Instructions\n\n1. **Get User Access Token**: Run `10-get-user-access-token` to authenticate\n2. **Submit Match Request**: Run `20-submit-match-request` to join matchmaking\n3. **Check Match Status**: Run `30-get-match-status` to check if matched\n4. **Cancel Request** (optional): Run `40-cancel-match-request` to cancel\n\n# Testing Scenarios\n\n## Scenario 1: Successful Match (2 Players)\n\n1. Get access tokens for two different users\n2. Submit match requests from both users\n3. Wait 1-2 seconds for the matcher to run\n4. Check status for both requests - should show MATCHED with session details\n\n## Scenario 2: Request Timeout\n\n1. Submit a match request\n2. Wait for timeout period (default: 60 seconds)\n3. Check status - should show EXPIRED\n\n## Scenario 3: Cancel Request\n\n1. Submit a match request\n2. Immediately cancel it\n3. Check status - should show CANCELLED\n\nFor more details, see the [Testing Guide](../docs/testing_guide.md).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "19336018"
 	},
@@ -129,12 +129,11 @@
 					}
 				},
 				"url": {
-					"raw": "{{EXTEND_APP_SERVICE_URL}}/matchmaking/v1/request",
+					"raw": "{{EXTEND_APP_SERVICE_URL}}/v1/request",
 					"host": [
 						"{{EXTEND_APP_SERVICE_URL}}"
 					],
 					"path": [
-						"matchmaking",
 						"v1",
 						"request"
 					]
@@ -185,12 +184,11 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{EXTEND_APP_SERVICE_URL}}/matchmaking/v1/request/{{REQUEST_ID}}",
+					"raw": "{{EXTEND_APP_SERVICE_URL}}/v1/request/{{REQUEST_ID}}",
 					"host": [
 						"{{EXTEND_APP_SERVICE_URL}}"
 					],
 					"path": [
-						"matchmaking",
 						"v1",
 						"request",
 						"{{REQUEST_ID}}"
@@ -235,12 +233,11 @@
 				"method": "DELETE",
 				"header": [],
 				"url": {
-					"raw": "{{EXTEND_APP_SERVICE_URL}}/matchmaking/v1/request/{{REQUEST_ID}}",
+					"raw": "{{EXTEND_APP_SERVICE_URL}}/v1/request/{{REQUEST_ID}}",
 					"host": [
 						"{{EXTEND_APP_SERVICE_URL}}"
 					],
 					"path": [
-						"matchmaking",
 						"v1",
 						"request",
 						"{{REQUEST_ID}}"

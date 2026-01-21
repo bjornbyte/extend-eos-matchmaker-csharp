@@ -81,7 +81,7 @@ AB_NAMESPACE=your-namespace
 
 # Service Configuration
 PLUGIN_GRPC_SERVER_AUTH_ENABLED=true
-BASE_PATH=/eos-matchmaking
+BASE_PATH=/matchmaking
 
 # EOS Configuration
 EOS_PRODUCT_ID=your-product-id
@@ -103,14 +103,14 @@ docker compose up --build
 ```
 
 The service will be available at:
-- **REST API**: `http://localhost:8000/eos-matchmaking`
-- **Swagger UI**: `http://localhost:8000/eos-matchmaking/apidocs/`
+- **REST API**: `http://localhost:8000/matchmaking`
+- **Swagger UI**: `http://localhost:8000/matchmaking/apidocs/`
 - **Metrics**: `http://localhost:8080/metrics`
 
 ### 5. Verify Service is Running
 
 ```bash
-curl http://localhost:8000/eos-matchmaking/apidocs/
+curl http://localhost:8000/matchmaking/apidocs/
 ```
 
 You should see the Swagger UI HTML response.
@@ -178,12 +178,12 @@ PLUGIN_GRPC_SERVER_AUTH_ENABLED=false
 Configure the base path for the service:
 
 ```bash
-BASE_PATH=/eos-matchmaking
+BASE_PATH=/matchmaking
 ```
 
 This affects all endpoint URLs:
-- `/eos-matchmaking/matchmaking/v1/request`
-- `/eos-matchmaking/apidocs/`
+- `/matchmaking/v1/request`
+- `/matchmaking/apidocs/`
 
 ---
 

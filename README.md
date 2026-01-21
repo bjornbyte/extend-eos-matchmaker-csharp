@@ -155,7 +155,7 @@ The matchmaking service can be configured via `appsettings.json` or environment 
    AB_CLIENT_SECRET=xxxxxxxxxx
    AB_NAMESPACE=xxxxxxxxxx
    PLUGIN_GRPC_SERVER_AUTH_ENABLED=true
-   BASE_PATH=/eos-matchmaking
+   BASE_PATH=/matchmaking
    
    EOS_PRODUCT_ID=xxxxxxxxxx
    EOS_SANDBOX_ID=xxxxxxxxxx
@@ -171,7 +171,7 @@ The matchmaking service can be configured via `appsettings.json` or environment 
 
 4. **Access Swagger UI:**
    ```
-   http://localhost:8000/eos-matchmaking/apidocs/
+   http://localhost:8000/matchmaking/apidocs/
    ```
 
 > See [Setup Guide](docs/setup.md) for detailed configuration options and deployment instructions.
@@ -188,7 +188,7 @@ dotnet test src/extend-service-extension-server.sln
 
 1. **Get access token** using [demo/get-access-token.postman_collection.json](demo/get-access-token.postman_collection.json)
 2. **Test matchmaking endpoints** using [demo/matchmaking-service-demo.postman_collection.json](demo/matchmaking-service-demo.postman_collection.json)
-3. **Or use Swagger UI** at `http://localhost:8000/eos-matchmaking/apidocs/`
+3. **Or use Swagger UI** at `http://localhost:8000/matchmaking/apidocs/`
 4. **Authorize** with `Bearer <access_token>`
 5. **Test scenarios:**
    - Submit match requests from multiple users

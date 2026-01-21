@@ -30,7 +30,7 @@ The recommended way to test the service is using Swagger UI.
 
 3. **Access Swagger UI:**
    
-   Open `http://localhost:8000/eos-matchmaking/apidocs/`
+   Open `http://localhost:8000/matchmaking/apidocs/`
    
    > The URL path depends on your `BASE_PATH` setting.
 
@@ -52,14 +52,14 @@ Here's a typical matchmaking flow to test:
 
 1. **Submit Match Requests** - Have 2 or more players submit requests
    ```
-   POST /eos-matchmaking/matchmaking/v1/request
+   POST /matchmaking/v1/request
    Body: { "metadata": { "region": "us-west" } }
    ```
    Each player receives a unique `request_id`
 
 2. **Check Status** - Query the status
    ```
-   GET /eos-matchmaking/matchmaking/v1/request/{request_id}
+   GET /matchmaking/v1/request/{request_id}
    ```
    Status will be "PENDING" initially
 
@@ -70,13 +70,13 @@ Here's a typical matchmaking flow to test:
 
 4. **Get Match Details** - Query again to get session information
    ```
-   GET /eos-matchmaking/matchmaking/v1/request/{request_id}
+   GET /matchmaking/v1/request/{request_id}
    ```
    Response includes `session_id` and matched player information
 
 5. **Cancel Request** (Optional) - Cancel a pending request
    ```
-   DELETE /eos-matchmaking/matchmaking/v1/request/{request_id}
+   DELETE /matchmaking/v1/request/{request_id}
    ```
    Only works for pending requests
 
