@@ -154,7 +154,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
     public class SessionCreatorTests
     {
         [Fact(Timeout = 5000)] //, Skip = "Skipped - creating EOSSDKService triggers EOS SDK loading")]
-        public async Task CreateSessionAsync_WithNullMatch_ShouldThrowArgumentNullException()
+        public async Task GetSessionAsync_WithNullMatch_ShouldThrowArgumentNullException()
         {
             // Arrange - Create a session creator without needing EOS initialized
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
@@ -167,12 +167,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await sessionCreator.CreateSessionAsync(null!)
+                async () => await sessionCreator.GetSessionAsync(null!)
             );
         }
 
         [Fact(Timeout = 5000)] //, Skip = "Skipped - creating EOSSDKService triggers EOS SDK loading")]
-        public async Task CreateSessionAsync_WithEmptyRequests_ShouldThrowArgumentException()
+        public async Task GetSessionAsync_WithEmptyRequests_ShouldThrowArgumentException()
         {
             // Arrange - Create a session creator without needing EOS initialized
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
@@ -187,12 +187,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(
-                async () => await sessionCreator.CreateSessionAsync(match)
+                async () => await sessionCreator.GetSessionAsync(match)
             );
         }
 
         [Fact(Timeout = 5000)] //, Skip = "Skipped - creating EOSSDKService triggers EOS SDK loading")]
-        public async Task CreateSessionAsync_WithNullRequests_ShouldThrowArgumentException()
+        public async Task GetSessionAsync_WithNullRequests_ShouldThrowArgumentException()
         {
             // Arrange - Create a session creator without needing EOS initialized
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
@@ -207,7 +207,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(
-                async () => await sessionCreator.CreateSessionAsync(match)
+                async () => await sessionCreator.GetSessionAsync(match)
             );
         }
     }
@@ -255,7 +255,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 
         [Fact(Timeout = 10000)]
         [Trait("Category", "Integration")]
-        public async Task CreateSessionAsync_WithValidMatch_ShouldCreateSession()
+        public async Task GetSessionAsync_WithValidMatch_ShouldCreateSession()
         {
             // Skip if EOS is not initialized
             if (!_eosFixture.IsInitialized)
@@ -279,7 +279,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             _output.WriteLine($"User IDs: {string.Join(", ", match.Requests.ConvertAll(r => r.UserId))}");
 
             // Act
-            var sessionInfo = await sessionCreator.CreateSessionAsync(match);
+            var sessionInfo = await sessionCreator.GetSessionAsync(match);
 
             // Assert
             Assert.NotNull(sessionInfo);
@@ -302,7 +302,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 
         [Fact(Timeout = 10000)]
         [Trait("Category", "Integration")]
-        public async Task CreateSessionAsync_WithMultiplePlayers_ShouldCreateSession()
+        public async Task GetSessionAsync_WithMultiplePlayers_ShouldCreateSession()
         {
             // Skip if EOS is not initialized
             if (!_eosFixture.IsInitialized)
@@ -326,7 +326,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             _output.WriteLine($"Creating 4-player session for match: {match.MatchId}");
 
             // Act
-            var sessionInfo = await sessionCreator.CreateSessionAsync(match);
+            var sessionInfo = await sessionCreator.GetSessionAsync(match);
 
             // Assert
             Assert.NotNull(sessionInfo);

@@ -185,8 +185,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     
                     try
                     {
-                        // Create session
-                        var sessionInfo = await _sessionCreator.CreateSessionAsync(match);
+                        // Get session
+                        var sessionInfo = await _sessionCreator.GetSessionAsync(match);
 
                         // Update request statuses
                         foreach (var request in requestsForMatch)

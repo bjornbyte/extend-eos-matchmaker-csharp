@@ -56,7 +56,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _mockSessionCreator.Setup(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()))
+            _mockSessionCreator.Setup(s => s.GetSessionAsync(It.IsAny<ModelMatch>()))
                 .ReturnsAsync(sessionInfo);
 
             var matchMaker = new MatchMaker(
@@ -74,7 +74,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             Assert.Single(matches);
             Assert.Equal(2, matches[0].Requests.Count);
             Assert.Equal(0, matchPool.Count); // Pool should be empty after match
-            _mockSessionCreator.Verify(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()), Times.Once);
+            _mockSessionCreator.Verify(s => s.GetSessionAsync(It.IsAny<ModelMatch>()), Times.Once);
             _mockNotifier.Verify(n => n.NotifyMatchAsync(sessionInfo), Times.Once);
         }
 
@@ -106,7 +106,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Assert
             Assert.Empty(matches);
             Assert.Equal(1, matchPool.Count); // Request should still be in pool
-            _mockSessionCreator.Verify(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()), Times.Never);
+            _mockSessionCreator.Verify(s => s.GetSessionAsync(It.IsAny<ModelMatch>()), Times.Never);
         }
 
         [Fact]
@@ -126,7 +126,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             matchPool.Add(request1);
             matchPool.Add(request2);
 
-            _mockSessionCreator.Setup(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()))
+            _mockSessionCreator.Setup(s => s.GetSessionAsync(It.IsAny<ModelMatch>()))
                 .ThrowsAsync(new InvalidOperationException("Session creation failed"));
 
             var matchMaker = new MatchMaker(
@@ -205,7 +205,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _mockSessionCreator.Setup(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()))
+            _mockSessionCreator.Setup(s => s.GetSessionAsync(It.IsAny<ModelMatch>()))
                 .ReturnsAsync(sessionInfo);
 
             var matchMaker = new MatchMaker(
@@ -258,7 +258,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _mockSessionCreator.Setup(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()))
+            _mockSessionCreator.Setup(s => s.GetSessionAsync(It.IsAny<ModelMatch>()))
                 .ReturnsAsync(sessionInfo);
 
             var matchMaker = new MatchMaker(
@@ -306,7 +306,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _mockSessionCreator.Setup(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()))
+            _mockSessionCreator.Setup(s => s.GetSessionAsync(It.IsAny<ModelMatch>()))
                 .ReturnsAsync(sessionInfo);
 
             var matchMaker = new MatchMaker(
@@ -443,7 +443,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _mockSessionCreator.Setup(s => s.CreateSessionAsync(It.IsAny<ModelMatch>()))
+            _mockSessionCreator.Setup(s => s.GetSessionAsync(It.IsAny<ModelMatch>()))
                 .ReturnsAsync(sessionInfo);
 
             var matchMaker = new MatchMaker(

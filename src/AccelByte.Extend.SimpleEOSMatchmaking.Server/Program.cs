@@ -83,6 +83,15 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             matchMakerConfig.RequestTimeout = TimeSpan.FromSeconds(matchMakerSection.GetValue<int>("RequestTimeoutSeconds", 60));
             matchMakerConfig.RetentionPeriod = TimeSpan.FromSeconds(matchMakerSection.GetValue<int>("RetentionPeriodSeconds", 120));
 
+            // Configure and validate session provider mode
+            var sessionProviderConfig = builder.Configuration
+                .GetSection("SessionProvider")
+                .Get<SessionProviderConfig>() ?? new SessionProviderConfig();
+            
+            sessionProviderConfig.Validate();
+            
+            Console.WriteLine($"Session provider mode: {sessionProviderConfig.Mode}");
+
             builder.Services
                 .AddSingleton<IAccelByteServiceProvider, DefaultAccelByteServiceProvider>()
                 .Configure<EOSConfig>(builder.Configuration.GetSection("EOS"))
@@ -90,8 +99,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 .AddHostedService(sp => sp.GetRequiredService<EOSSDKService>())
                 // Register matchmaking services
                 .AddSingleton<IMatchPool, MatchPool>()
-                .AddSingleton<ICompletedRequestStore, CompletedRequestStore>()
-                .AddSingleton<ISessionCreator, EOSSessionCreator>()
+                .AddSingleton<ICompletedRequestStore, CompletedRequestStore>();
+
+            // Register session provider based on configuration
+            if (sessionProviderConfig.Mode == "create")
+            {
+                builder.Services.AddSingleton<ISessionCreator, EOSSessionCreator>();
+            }
+            else // "find"
+            {
+                var finderConfig = builder.Configuration
+                    .GetSection("SessionFinder")
+                    .Get<EOSSessionFinderConfig>() ?? new EOSSessionFinderConfig();
+                
+                builder.Services.AddSingleton(finderConfig);
+                builder.Services.AddSingleton<ISessionCreator, EOSSessionFinder>();
+            }
+
+            builder.Services
                 .AddSingleton<INotifier, LoggingNotifier>()
                 .AddSingleton(matchMakerConfig)
                 .AddSingleton<IMatchMaker, MatchMaker>()

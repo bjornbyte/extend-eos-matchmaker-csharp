@@ -15,16 +15,18 @@ using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// Interface for creating game sessions
+    /// Interface for obtaining game sessions for matched players.
+    /// Implementations may create new sessions or find existing ones.
     /// </summary>
     public interface ISessionCreator
     {
         /// <summary>
-        /// Create a session for the matched players
+        /// Get a session for the matched players.
+        /// Implementations may create a new session or find an existing empty session.
         /// </summary>
-        /// <param name="match">The match containing the players to create a session for</param>
-        /// <returns>Information about the created session</returns>
-        Task<SessionInfo> CreateSessionAsync(Match match);
+        /// <param name="match">The match containing the players to get a session for</param>
+        /// <returns>Information about the obtained session</returns>
+        Task<SessionInfo> GetSessionAsync(Match match);
     }
 
     /// <summary>
@@ -41,7 +43,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             _eosService = eosService;
         }
 
-        public async Task<SessionInfo> CreateSessionAsync(Match match)
+        public async Task<SessionInfo> GetSessionAsync(Match match)
         {
             if (match == null)
                 throw new ArgumentNullException(nameof(match));
