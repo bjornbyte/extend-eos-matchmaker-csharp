@@ -21,6 +21,7 @@ flowchart TB
         AUTH[Auth Interceptor]
         MS[Matchmaking Service]
         MP[Match Pool]
+        CRS[Completed Request Store]
         MM[Match Maker]
         SC[Session Creator]
         NOT[Notifier Interface]
@@ -36,8 +37,10 @@ flowchart TB
     AUTH -->|Validate Token| AB
     AUTH --> MS
     MS --> MP
+    MS --> CRS
     MS --> MM
     MM --> SC
+    MM -->|Move Completed| CRS
     SC --> EOS
     MM --> NOT
 ```
@@ -50,8 +53,10 @@ flowchart TB
 4. Matchmaking service creates match request and adds to pool
 5. Background matcher periodically checks pool for matches
 6. When match found, session creator creates EOS session via SDK
-7. Notifier interface is invoked with match details
-8. Players can query status to get session details
+7. Matched requests are moved to completed request store with retention period
+8. Notifier interface is invoked with match details
+9. Players can query status to get session details (from pool or completed store)
+10. Completed requests are automatically cleaned up after retention period expires
 
 ## Components and Interfaces
 
@@ -103,6 +108,32 @@ public interface IMatchPool
 }
 ```
 
+### CompletedRequestStore
+
+Thread-safe in-memory storage for completed match requests (matched, expired, cancelled) with automatic cleanup after retention period.
+
+```csharp
+public interface ICompletedRequestStore
+{
+    // Add a completed request to the store
+    void Add(MatchRequest request);
+    
+    // Get a completed request by ID
+    MatchRequest? Get(string requestId);
+    
+    // Remove requests that have exceeded the retention period
+    IReadOnlyList<MatchRequest> RemoveExpired(TimeSpan retentionPeriod);
+    
+    // Get count of completed requests
+    int Count { get; }
+}
+
+public class CompletedRequestStoreConfig
+{
+    public TimeSpan RetentionPeriod { get; set; } = TimeSpan.FromSeconds(120); // Default: 2 minutes
+}
+```
+
 ### MatchMaker
 
 Background service that periodically checks the pool and creates matches.
@@ -125,6 +156,7 @@ public class MatchMakerConfig
     public int MatchSize { get; set; } = 2;           // Number of players per match
     public TimeSpan TickInterval { get; set; } = TimeSpan.FromSeconds(1);  // How often to check
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(60); // Request expiration
+    public TimeSpan RetentionPeriod { get; set; } = TimeSpan.FromSeconds(120); // Completed request retention
 }
 ```
 
@@ -185,6 +217,7 @@ public class MatchRequest
     public MatchRequestStatus Status { get; set; } = MatchRequestStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? MatchedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }  // When request reached terminal state
     public string? SessionId { get; set; }
     public Dictionary<string, string> Metadata { get; set; } = new();
 }
@@ -338,6 +371,36 @@ message CancelMatchRequestResponse {
 
 **Validates: Requirements 8.1, 8.3**
 
+### Property 15: Terminal State Moves to Completed Store
+
+*For any* Match_Request that reaches a terminal state (matched, expired, or cancelled), the request SHALL be moved to the Completed_Request_Store and SHALL no longer exist in the Match_Pool.
+
+**Validates: Requirements 6.1**
+
+### Property 16: Completed Requests Queryable Within Retention Period
+
+*For any* completed Match_Request where the time since completion is less than the Retention_Period, querying the request status SHALL successfully return the request details.
+
+**Validates: Requirements 6.2**
+
+### Property 17: Expired Completed Requests Removed
+
+*For any* completed Match_Request where the time since completion exceeds the Retention_Period, the request SHALL be removed from the Completed_Request_Store.
+
+**Validates: Requirements 6.3**
+
+### Property 18: Retention Period Configuration Respected
+
+*For any* configured Retention_Period value, completed requests SHALL remain queryable for exactly that duration before being removed.
+
+**Validates: Requirements 6.4**
+
+### Property 19: Completed Request Query Consistency
+
+*For any* completed Match_Request within the Retention_Period, the status query response SHALL contain the same fields (status, session_id, matched_user_ids, matched_request_ids) as would be returned if the request were still in the Match_Pool.
+
+**Validates: Requirements 6.5**
+
 ## Error Handling
 
 ### Error Codes
@@ -411,6 +474,7 @@ src/
 │   ├── Services/
 │   │   ├── MatchmakingService.cs
 │   │   ├── MatchPool.cs
+│   │   ├── CompletedRequestStore.cs
 │   │   ├── MatchMaker.cs
 │   │   ├── SessionCreator.cs
 │   │   └── Notifier.cs
@@ -422,6 +486,8 @@ src/
 └── AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests/
     ├── MatchPoolTests.cs
     ├── MatchPoolPropertyTests.cs
+    ├── CompletedRequestStoreTests.cs
+    ├── CompletedRequestStorePropertyTests.cs
     ├── MatchMakerTests.cs
     ├── MatchMakerPropertyTests.cs
     ├── MatchmakingServiceTests.cs
@@ -433,7 +499,8 @@ src/
 1. **Submit Request**: Valid submission, duplicate rejection, response format
 2. **Matching**: FIFO ordering, correct match size, pool cleanup
 3. **Session Creation**: Success path, failure recovery
-4. **Status Query**: All status types, unknown ID handling
+4. **Status Query**: All status types, unknown ID handling, completed request queries
 5. **Cancellation**: Success, already matched error
 6. **Expiration**: Timeout behavior, status update
 7. **Notification**: Notifier invocation, parameter correctness
+8. **Retention**: Completed request storage, retention period expiration, query consistency

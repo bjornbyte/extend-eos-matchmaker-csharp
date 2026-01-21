@@ -12,6 +12,8 @@ This feature adds a simple matchmaking system to the service. Users can submit m
 - **Match**: A successful pairing of two or more match requests that will be placed into a game session together.
 - **EOS_Session**: An Epic Online Services session created for matched players.
 - **Request_Identifier**: A unique identifier assigned to each match request, used to track the request through the matchmaking process.
+- **Completed_Request_Store**: A temporary storage for match requests that have reached a terminal state (matched, expired, or cancelled), allowing status queries for a configurable retention period.
+- **Retention_Period**: The configurable duration for which completed match requests remain queryable after reaching a terminal state.
 
 ## Requirements
 
@@ -66,7 +68,19 @@ This feature adds a simple matchmaking system to the service. Users can submit m
 2. WHEN a match has been found THEN THE Matchmaking_Service SHALL return the session details including the EOS_Session ID
 3. IF a user queries with an invalid or unknown Request_Identifier THEN THE Matchmaking_Service SHALL return a not found error
 
-### Requirement 6: Match Request Cancellation
+### Requirement 6: Match Request Retention
+
+**User Story:** As a player, I want to query the status of my match request even after it has been matched, so that I can retrieve session details if I missed the initial notification.
+
+#### Acceptance Criteria
+
+1. WHEN a Match_Request reaches a terminal state (matched, expired, or cancelled) THEN THE Matchmaking_Service SHALL move the request to the Completed_Request_Store
+2. WHILE a completed Match_Request is within the Retention_Period THEN THE Matchmaking_Service SHALL allow status queries to retrieve the request details
+3. WHEN a completed Match_Request exceeds the Retention_Period THEN THE Matchmaking_Service SHALL remove it from the Completed_Request_Store
+4. THE Matchmaking_Service SHALL support configurable Retention_Period (default: 120 seconds)
+5. WHEN querying status for a completed request within the Retention_Period THEN THE Matchmaking_Service SHALL return the same information as if the request were still in the Match_Pool
+
+### Requirement 7: Match Request Cancellation
 
 **User Story:** As a player, I want to cancel my match request, so that I can stop waiting for a match if I change my mind.
 
@@ -76,7 +90,7 @@ This feature adds a simple matchmaking system to the service. Users can submit m
 2. WHEN a match request is cancelled THEN THE Matchmaking_Service SHALL return a confirmation of cancellation
 3. IF a user attempts to cancel a request that has already been matched THEN THE Matchmaking_Service SHALL return an error indicating the request is no longer pending
 
-### Requirement 7: Match Request Expiration
+### Requirement 8: Match Request Expiration
 
 **User Story:** As a system operator, I want match requests to expire after a timeout, so that stale requests don't accumulate in the system.
 
@@ -86,7 +100,7 @@ This feature adds a simple matchmaking system to the service. Users can submit m
 2. THE Matchmaking_Service SHALL support configurable request timeout (default: 60 seconds)
 3. WHEN a request expires THEN THE Matchmaking_Service SHALL update the request status to expired
 
-### Requirement 8: Match Notification
+### Requirement 9: Match Notification
 
 **User Story:** As a developer, I want a pluggable notification mechanism, so that I can integrate my own notification system when matches are found.
 

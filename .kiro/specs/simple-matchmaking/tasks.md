@@ -63,106 +63,112 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - Use List for maintaining insertion order (FIFO)
     - _Requirements: 1.1, 3.2, 3.3, 6.1, 7.1_
 
-  - [ ]* 7.2 Write property test for Match Pool FIFO ordering
-    - **Property 5: FIFO Match Ordering**
-    - **Validates: Requirements 3.2**
+- [ ] 8. Implement Completed Request Store
+  - [ ] 8.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/CompletedRequestStore.cs` with ICompletedRequestStore interface and implementation
+    - Implement thread-safe in-memory storage for completed requests
+    - Implement Add, Get, RemoveExpired, Count methods
+    - Use Dictionary for O(1) lookups by request ID
+    - Track CompletedAt timestamp for retention period calculation
+    - _Requirements: 6.1, 6.2, 6.3_
 
-  - [ ]* 7.3 Write property test for Match Pool uniqueness
-    - **Property 1: Request ID Uniqueness**
-    - **Validates: Requirements 1.1**
+- [ ] 9. Update Match Request Model for Retention
+  - [ ] 9.1 Add CompletedAt property to MatchRequest class
+    - Add nullable DateTime? CompletedAt property
+    - Set CompletedAt when request reaches terminal state
+    - _Requirements: 6.1, 6.3_
 
-- [x] 8. Implement Session Creator Interface
-  - [x] 8.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/SessionCreator.cs` with ISessionCreator interface
+- [ ] 10. Update Match Maker to Use Completed Request Store
+  - [ ] 10.1 Inject ICompletedRequestStore into MatchMaker
+    - Add ICompletedRequestStore parameter to constructor
+    - _Requirements: 6.1_
+
+  - [ ] 10.2 Move matched requests to completed store
+    - After successful match and session creation, set CompletedAt and move requests to completed store
+    - _Requirements: 6.1_
+
+  - [ ] 10.3 Move expired requests to completed store
+    - When removing expired requests, set CompletedAt and move to completed store
+    - _Requirements: 6.1, 7.3_
+
+  - [ ] 10.4 Add cleanup of expired completed requests
+    - In background tick, call RemoveExpired on completed store with retention period
+    - _Requirements: 6.3_
+
+- [ ] 11. Update Matchmaking Service to Query Completed Store
+  - [ ] 11.1 Inject ICompletedRequestStore into MatchmakingService
+    - Add ICompletedRequestStore parameter to constructor
+    - _Requirements: 6.2, 6.5_
+
+  - [ ] 11.2 Update GetMatchStatus to check completed store
+    - First check Match_Pool, then check Completed_Request_Store if not found
+    - Return same response format for both pending and completed requests
+    - _Requirements: 6.2, 6.5_
+
+  - [ ] 11.3 Update CancelMatchRequest to move to completed store
+    - When cancelling, set CompletedAt and move to completed store instead of just removing
+    - _Requirements: 6.1_
+
+- [ ] 12. Update Configuration for Retention Period
+  - [ ] 12.1 Add RetentionPeriod to MatchMakerConfig
+    - Add RetentionPeriodSeconds property (default: 120)
+    - _Requirements: 6.4_
+
+  - [ ] 12.2 Update appsettings.json with retention period
+    - Add RetentionPeriodSeconds to MatchMaker configuration section
+    - _Requirements: 6.4_
+
+- [ ] 13. Update Dependency Injection for Completed Store
+  - [ ] 13.1 Register ICompletedRequestStore in Program.cs
+    - Register as singleton
+    - _Requirements: 6.1_
+
+- [ ] 14. Checkpoint - Ensure retention feature works
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 15. Implement Session Creator Interface
+  - [x] 15.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/SessionCreator.cs` with ISessionCreator interface
     - Define ISessionCreator interface with CreateSessionAsync method
     - Define SessionInfo class with SessionId, RequestIds, UserIds, CreatedAt
     - Implement EOSSessionCreator that creates sessions via EOS SDK
     - Include matched request IDs in session attributes/metadata
     - _Requirements: 4.1, 4.2_
 
-  - [ ]* 8.2 Write property test for session creation with request IDs
-    - **Property 6: Session Creation with Request Identifiers**
-    - **Validates: Requirements 4.1, 4.2**
-
-- [x] 9. Implement Notifier Interface
-  - [x] 9.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/Notifier.cs` with INotifier interface and LoggingNotifier
+- [x] 16. Implement Notifier Interface
+  - [x] 16.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/Notifier.cs` with INotifier interface and LoggingNotifier
     - Define INotifier interface with NotifyMatchAsync method
     - Implement LoggingNotifier that logs match events (default no-op)
     - _Requirements: 8.1, 8.2, 8.3_
     - **TDD Completed**: RED phase verified (compilation errors for missing types), GREEN phase verified (all 6 tests passed)
 
-  - [ ]* 9.2 Write property test for notifier invocation
-    - **Property 14: Notifier Receives Complete Match Information**
-    - **Validates: Requirements 8.1, 8.3**
-
-- [x] 10. Implement Match Maker
-  - [x] 10.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchMaker.cs` with IMatchMaker interface and implementation
+- [x] 17. Implement Match Maker
+  - [x] 17.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchMaker.cs` with IMatchMaker interface and implementation
     - Define MatchMakerConfig with MatchSize, TickInterval, RequestTimeout
     - Implement IHostedService for background processing
     - Implement TryMatchAsync that creates matches from oldest requests
     - Handle session creation failure by returning requests to pool
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.3, 7.1, 7.2, 7.3_
 
-  - [ ]* 10.2 Write property test for match creation and pool invariant
-    - **Property 4: Match Creation and Pool Invariant**
-    - **Validates: Requirements 3.1, 3.3, 3.4**
-
-  - [ ]* 10.3 Write property test for session failure recovery
-    - **Property 7: Session Failure Recovery**
-    - **Validates: Requirements 4.3**
-
-  - [ ]* 10.4 Write property test for expiration handling
-    - **Property 13: Expiration Updates Status and Removes from Pool**
-    - **Validates: Requirements 7.1, 7.3**
-
-- [x] 11. Checkpoint - Ensure core components work
+- [x] 18. Checkpoint - Ensure core components work
   - Ensure all tests pass, ask the user if questions arise.
 
-- [x] 12. Implement Matchmaking Service
-  - [x] 12.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchmakingService.cs` with gRPC service implementation
+- [x] 19. Implement Matchmaking Service
+  - [x] 19.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/MatchmakingService.cs` with gRPC service implementation
     - Implement SubmitMatchRequest: extract user ID from context, check for duplicates, add to pool, return request ID
     - Implement GetMatchStatus: lookup request, return status and session details if matched
     - Implement CancelMatchRequest: validate pending status, remove from pool, return confirmation
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3_
     - **TDD Completed**: RED phase verified (ServerCallContext mocking errors - "Non-overridable members may not be used in setup expressions"), GREEN phase verified (all 8 tests passed after creating TestServerCallContext helper class)
 
-  - [ ]* 12.2 Write property test for duplicate user rejection
-    - **Property 3: Duplicate User Rejection with Existing Request ID**
-    - **Validates: Requirements 1.3**
-
-  - [ ]* 12.3 Write property test for immediate response with request ID
-    - **Property 2: Immediate Response with Request ID**
-    - **Validates: Requirements 1.2**
-
-  - [ ]* 12.4 Write property test for status query validity
-    - **Property 8: Status Query Validity**
-    - **Validates: Requirements 5.1**
-
-  - [ ]* 12.5 Write property test for matched status contains session details
-    - **Property 9: Matched Status Contains Session Details**
-    - **Validates: Requirements 5.2**
-
-  - [ ]* 12.6 Write property test for unknown request ID error
-    - **Property 10: Unknown Request ID Error**
-    - **Validates: Requirements 5.3**
-
-  - [ ]* 12.7 Write property test for cancellation
-    - **Property 11: Cancellation Removes and Confirms**
-    - **Validates: Requirements 6.1, 6.2**
-
-  - [ ]* 12.8 Write property test for cannot cancel matched request
-    - **Property 12: Cannot Cancel Matched Request**
-    - **Validates: Requirements 6.3**
-
-- [x] 13. Implement Exception Types
-  - [x] 13.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Classes/MatchmakingExceptions.cs`
+- [x] 20. Implement Exception Types
+  - [x] 20.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Classes/MatchmakingExceptions.cs`
     - Add DuplicateRequestException with ExistingRequestId property
     - Add MatchRequestNotFoundException
     - Add RequestAlreadyMatchedException
     - Add SessionCreationException
     - _Requirements: 1.3, 5.3, 6.3_
 
-- [-] 14. Wire Up Dependency Injection and Startup
-  - [x] 14.1 Update `Program.cs` to register matchmaking services
+- [-] 21. Wire Up Dependency Injection and Startup
+  - [x] 21.1 Update `Program.cs` to register matchmaking services
     - Register IMatchPool as singleton
     - Register ISessionCreator
     - Register INotifier (LoggingNotifier)
@@ -171,33 +177,31 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - Configure MatchMakerConfig from appsettings
     - _Requirements: 3.4, 7.2_
 
-  - [x] 14.2 Add configuration to `appsettings.json`
+  - [x] 21.2 Add configuration to `appsettings.json`
     - Add MatchMaker section with MatchSize, TickIntervalSeconds, RequestTimeoutSeconds
     - Add EOS SDK configuration section
     - _Requirements: 3.4, 7.2_
 
-- [x] 15. Checkpoint - Integration testing
+- [x] 22. Checkpoint - Integration testing
   - Ensure all tests pass, ask the user if questions arise.
   - **Status**: All 71 tests passing, build succeeds
 
-- [x] 16. Update Documentation
-  - [x] 16.1 Update `README.md` with matchmaking documentation
+- [x] 23. Update Documentation
+  - [x] 23.1 Update `README.md` with matchmaking documentation
     - Add matchmaking API documentation
     - Document configuration options
     - Add usage examples
     - _Requirements: All_
     - **Status**: README.md completely rewritten with comprehensive matchmaking documentation including API endpoints, configuration, testing guide, architecture overview, and deployment instructions
 
-- [x] 17. Final Checkpoint
+- [x] 24. Final Checkpoint
   - Ensure all tests pass, ask the user if questions arise.
   - **Status**: All 71 tests passing, build succeeds, documentation complete
 
 ## Notes
 
-- Tasks marked with `*` are optional property-based tests that can be skipped for faster MVP
 - Each task references specific requirements for traceability
 - Checkpoints ensure incremental validation
-- Property tests use FsCheck for .NET
 - Unit tests use xUnit
 - The implementation follows AccelByte Extend Service Extension patterns
 
