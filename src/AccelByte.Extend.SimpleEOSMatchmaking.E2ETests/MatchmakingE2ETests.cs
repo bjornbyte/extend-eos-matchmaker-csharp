@@ -111,10 +111,11 @@ public class MatchmakingE2ETests : IAsyncLifetime
 
         _output.WriteLine($"✓ Successfully cancelled request: {submitResponse.RequestId} ({cancelDuration.TotalMilliseconds:F2}ms)");
 
-        // Verify request is no longer found
+        // Verify request is now in completed store with CANCELLED status
         var (statusResponse, statusDuration) = await client.GetMatchStatusAsync(submitResponse.RequestId);
-        Assert.Null(statusResponse);
-        _output.WriteLine($"  Verify not found: {statusDuration.TotalMilliseconds:F2}ms");
+        Assert.NotNull(statusResponse);
+        Assert.Equal("CANCELLED", statusResponse.Status);
+        _output.WriteLine($"  Verify CANCELLED status: {statusDuration.TotalMilliseconds:F2}ms");
     }
 
     [Fact]
@@ -191,16 +192,22 @@ public class MatchmakingE2ETests : IAsyncLifetime
         _output.WriteLine($"Waiting {_config.MatcherWaitTime.TotalSeconds}s for matcher...");
         await Task.Delay(_config.MatcherWaitTime);
 
-        // Assert - Requests should be matched and removed from pool
+        // Assert - Requests should be matched and queryable from completed store
         var (status1After, status1AfterDuration) = await client1.GetMatchStatusAsync(response1.RequestId);
         var (status2After, status2AfterDuration) = await client2.GetMatchStatusAsync(response2.RequestId);
 
-        // Note: Current implementation removes matched requests from pool
-        // So they will return null after matching
-        Assert.Null(status1After);
-        Assert.Null(status2After);
+        // With retention feature, matched requests should be queryable with MATCHED status
+        Assert.NotNull(status1After);
+        Assert.NotNull(status2After);
+        Assert.Equal("MATCHED", status1After.Status);
+        Assert.Equal("MATCHED", status2After.Status);
+        
+        // Both should have the same session ID
+        Assert.NotNull(status1After.SessionId);
+        Assert.NotNull(status2After.SessionId);
+        Assert.Equal(status1After.SessionId, status2After.SessionId);
 
-        _output.WriteLine($"✓ Both requests were matched (removed from pool)");
+        _output.WriteLine($"✓ Both requests were matched with session: {status1After.SessionId}");
         _output.WriteLine($"  P1 check: {status1AfterDuration.TotalMilliseconds:F2}ms, P2 check: {status2AfterDuration.TotalMilliseconds:F2}ms");
     }
 

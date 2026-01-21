@@ -23,7 +23,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         {
             _mockMatchPool = new Mock<IMatchPool>();
             _mockLogger = new Mock<ILogger<MatchmakingService>>();
-            _service = new MatchmakingService(_mockMatchPool.Object, _mockLogger.Object);
+            _service = new MatchmakingService(_mockMatchPool.Object, null, _mockLogger.Object);
         }
 
         [Fact]
@@ -197,6 +197,114 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 () => _service.CancelMatchRequest(request, context));
             
             Assert.Equal(StatusCode.NotFound, exception.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetMatchStatus_ChecksCompletedStoreWhenNotInPool()
+        {
+            // Arrange
+            var matchRequest = new MatchRequest("user123");
+            matchRequest.Status = ModelMatchRequestStatus.Matched;
+            matchRequest.SessionId = "session123";
+            matchRequest.CompletedAt = DateTime.UtcNow;
+            
+            var request = new AccelByte.Extend.SimpleEOSMatchmaking.GetMatchStatusRequest
+            {
+                RequestId = matchRequest.RequestId
+            };
+            var context = CreateMockContext("user123");
+            
+            var mockCompletedStore = new Mock<ICompletedRequestStore>();
+            _mockMatchPool.Setup(p => p.Get(matchRequest.RequestId)).Returns((MatchRequest?)null);
+            mockCompletedStore.Setup(s => s.Get(matchRequest.RequestId)).Returns(matchRequest);
+            
+            var service = new MatchmakingService(_mockMatchPool.Object, mockCompletedStore.Object, _mockLogger.Object);
+
+            // Act
+            var response = await service.GetMatchStatus(request, context);
+
+            // Assert
+            Assert.NotNull(response);
+            Assert.Equal(matchRequest.RequestId, response.RequestId);
+            Assert.Equal(AccelByte.Extend.SimpleEOSMatchmaking.MatchRequestStatus.Matched, response.Status);
+            Assert.Equal("session123", response.SessionId);
+            mockCompletedStore.Verify(s => s.Get(matchRequest.RequestId), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMatchStatus_ThrowsNotFoundWhenNotInPoolOrCompletedStore()
+        {
+            // Arrange
+            var request = new AccelByte.Extend.SimpleEOSMatchmaking.GetMatchStatusRequest
+            {
+                RequestId = "unknown-id"
+            };
+            var context = CreateMockContext("user123");
+            
+            var mockCompletedStore = new Mock<ICompletedRequestStore>();
+            _mockMatchPool.Setup(p => p.Get("unknown-id")).Returns((MatchRequest?)null);
+            mockCompletedStore.Setup(s => s.Get("unknown-id")).Returns((MatchRequest?)null);
+            
+            var service = new MatchmakingService(_mockMatchPool.Object, mockCompletedStore.Object, _mockLogger.Object);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<RpcException>(
+                () => service.GetMatchStatus(request, context));
+            
+            Assert.Equal(StatusCode.NotFound, exception.StatusCode);
+        }
+
+        [Fact]
+        public async Task CancelMatchRequest_MovesToCompletedStore()
+        {
+            // Arrange
+            var matchRequest = new MatchRequest("user123");
+            var request = new AccelByte.Extend.SimpleEOSMatchmaking.CancelMatchRequestRequest
+            {
+                RequestId = matchRequest.RequestId
+            };
+            var context = CreateMockContext("user123");
+            
+            var mockCompletedStore = new Mock<ICompletedRequestStore>();
+            _mockMatchPool.Setup(p => p.Get(matchRequest.RequestId)).Returns(matchRequest);
+            _mockMatchPool.Setup(p => p.Remove(matchRequest.RequestId)).Returns(matchRequest);
+            
+            var service = new MatchmakingService(_mockMatchPool.Object, mockCompletedStore.Object, _mockLogger.Object);
+
+            // Act
+            var response = await service.CancelMatchRequest(request, context);
+
+            // Assert
+            Assert.NotNull(response);
+            Assert.True(response.Success);
+            _mockMatchPool.Verify(p => p.Remove(matchRequest.RequestId), Times.Once);
+            mockCompletedStore.Verify(s => s.Add(It.Is<MatchRequest>(r => 
+                r.RequestId == matchRequest.RequestId && 
+                r.Status == ModelMatchRequestStatus.Cancelled &&
+                r.CompletedAt.HasValue)), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetMatchStatus_WorksWithNullCompletedStore()
+        {
+            // Arrange
+            var matchRequest = new MatchRequest("user123");
+            var request = new AccelByte.Extend.SimpleEOSMatchmaking.GetMatchStatusRequest
+            {
+                RequestId = matchRequest.RequestId
+            };
+            var context = CreateMockContext("user123");
+            
+            _mockMatchPool.Setup(p => p.Get(matchRequest.RequestId)).Returns(matchRequest);
+            
+            var service = new MatchmakingService(_mockMatchPool.Object, null, _mockLogger.Object);
+
+            // Act
+            var response = await service.GetMatchStatus(request, context);
+
+            // Assert
+            Assert.NotNull(response);
+            Assert.Equal(matchRequest.RequestId, response.RequestId);
         }
 
         private ServerCallContext CreateMockContext(string userId)

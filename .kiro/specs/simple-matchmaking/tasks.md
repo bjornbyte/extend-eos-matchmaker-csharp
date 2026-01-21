@@ -63,67 +63,87 @@ This implementation plan breaks down the simple matchmaking feature into discret
     - Use List for maintaining insertion order (FIFO)
     - _Requirements: 1.1, 3.2, 3.3, 6.1, 7.1_
 
-- [ ] 8. Implement Completed Request Store
-  - [ ] 8.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/CompletedRequestStore.cs` with ICompletedRequestStore interface and implementation
+- [x] 8. Implement Completed Request Store
+  - [x] 8.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/CompletedRequestStore.cs` with ICompletedRequestStore interface and implementation
     - Implement thread-safe in-memory storage for completed requests
     - Implement Add, Get, RemoveExpired, Count methods
     - Use Dictionary for O(1) lookups by request ID
     - Track CompletedAt timestamp for retention period calculation
     - _Requirements: 6.1, 6.2, 6.3_
+    - **TDD Completed**: RED phase verified (enum conversion errors between proto and model namespaces), GREEN phase verified (all 8 tests passed)
 
-- [ ] 9. Update Match Request Model for Retention
-  - [ ] 9.1 Add CompletedAt property to MatchRequest class
+- [x] 9. Update Match Request Model for Retention
+  - [x] 9.1 Add CompletedAt property to MatchRequest class
     - Add nullable DateTime? CompletedAt property
     - Set CompletedAt when request reaches terminal state
     - _Requirements: 6.1, 6.3_
+    - **Note**: Completed as part of Task 8.1
 
-- [ ] 10. Update Match Maker to Use Completed Request Store
-  - [ ] 10.1 Inject ICompletedRequestStore into MatchMaker
+- [x] 10. Update Match Maker to Use Completed Request Store
+  - [x] 10.1 Inject ICompletedRequestStore into MatchMaker
     - Add ICompletedRequestStore parameter to constructor
     - _Requirements: 6.1_
+    - **TDD Completed**: RED phase verified (constructor signature mismatch, missing RetentionPeriod config), GREEN phase verified (all 10 MatchMaker tests passed)
 
-  - [ ] 10.2 Move matched requests to completed store
+  - [x] 10.2 Move matched requests to completed store
     - After successful match and session creation, set CompletedAt and move requests to completed store
     - _Requirements: 6.1_
+    - **TDD Completed**: Verified with TryMatchAsync_MovesMatchedRequestsToCompletedStore test
 
-  - [ ] 10.3 Move expired requests to completed store
+  - [x] 10.3 Move expired requests to completed store
     - When removing expired requests, set CompletedAt and move to completed store
     - _Requirements: 6.1, 7.3_
+    - **TDD Completed**: Verified with TryMatchAsync_MovesExpiredRequestsToCompletedStore test
 
-  - [ ] 10.4 Add cleanup of expired completed requests
+  - [x] 10.4 Add cleanup of expired completed requests
     - In background tick, call RemoveExpired on completed store with retention period
     - _Requirements: 6.3_
+    - **TDD Completed**: Verified with TryMatchAsync_CleansUpExpiredCompletedRequests test
 
-- [ ] 11. Update Matchmaking Service to Query Completed Store
-  - [ ] 11.1 Inject ICompletedRequestStore into MatchmakingService
+- [x] 11. Update Matchmaking Service to Query Completed Store
+  - [x] 11.1 Inject ICompletedRequestStore into MatchmakingService
     - Add ICompletedRequestStore parameter to constructor
     - _Requirements: 6.2, 6.5_
+    - **TDD Completed**: RED phase verified (constructor signature mismatch), GREEN phase verified (all 12 MatchmakingService tests passed)
 
-  - [ ] 11.2 Update GetMatchStatus to check completed store
+  - [x] 11.2 Update GetMatchStatus to check completed store
     - First check Match_Pool, then check Completed_Request_Store if not found
     - Return same response format for both pending and completed requests
     - _Requirements: 6.2, 6.5_
+    - **TDD Completed**: Verified with GetMatchStatus_ChecksCompletedStoreWhenNotInPool and GetMatchStatus_ThrowsNotFoundWhenNotInPoolOrCompletedStore tests
 
-  - [ ] 11.3 Update CancelMatchRequest to move to completed store
+  - [x] 11.3 Update CancelMatchRequest to move to completed store
     - When cancelling, set CompletedAt and move to completed store instead of just removing
     - _Requirements: 6.1_
+    - **TDD Completed**: Verified with CancelMatchRequest_MovesToCompletedStore test
 
-- [ ] 12. Update Configuration for Retention Period
-  - [ ] 12.1 Add RetentionPeriod to MatchMakerConfig
+- [x] 12. Update Configuration for Retention Period
+  - [x] 12.1 Add RetentionPeriod to MatchMakerConfig
     - Add RetentionPeriodSeconds property (default: 120)
     - _Requirements: 6.4_
+    - **Note**: Completed as part of Task 10.1
 
-  - [ ] 12.2 Update appsettings.json with retention period
+  - [x] 12.2 Update appsettings.json with retention period
     - Add RetentionPeriodSeconds to MatchMaker configuration section
     - _Requirements: 6.4_
+    - **Note**: Configuration loading added in Program.cs
 
-- [ ] 13. Update Dependency Injection for Completed Store
-  - [ ] 13.1 Register ICompletedRequestStore in Program.cs
+- [x] 13. Update Dependency Injection for Completed Store
+  - [x] 13.1 Register ICompletedRequestStore in Program.cs
     - Register as singleton
     - _Requirements: 6.1_
+    - **Note**: Completed as part of Task 10.1
 
-- [ ] 14. Checkpoint - Ensure retention feature works
-  - Ensure all tests pass, ask the user if questions arise.
+- [x] 14. Checkpoint - Ensure retention feature works
+  - All tests pass (98 tests passing)
+  - Retention feature fully implemented:
+    - CompletedRequestStore stores completed requests with timestamps
+    - MatchMaker moves matched, expired requests to completed store
+    - MatchMaker cleans up expired completed requests based on retention period
+    - MatchmakingService queries completed store when request not in pool
+    - MatchmakingService moves cancelled requests to completed store
+    - Configuration supports RetentionPeriodSeconds (default: 120)
+  - **Status**: Feature complete and verified
 
 - [x] 15. Implement Session Creator Interface
   - [x] 15.1 Create `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/Services/SessionCreator.cs` with ISessionCreator interface

@@ -81,6 +81,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             matchMakerConfig.MatchSize = matchMakerSection.GetValue<int>("MatchSize", 2);
             matchMakerConfig.TickInterval = TimeSpan.FromSeconds(matchMakerSection.GetValue<int>("TickIntervalSeconds", 1));
             matchMakerConfig.RequestTimeout = TimeSpan.FromSeconds(matchMakerSection.GetValue<int>("RequestTimeoutSeconds", 60));
+            matchMakerConfig.RetentionPeriod = TimeSpan.FromSeconds(matchMakerSection.GetValue<int>("RetentionPeriodSeconds", 120));
 
             builder.Services
                 .AddSingleton<IAccelByteServiceProvider, DefaultAccelByteServiceProvider>()
@@ -89,6 +90,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 .AddHostedService(sp => sp.GetRequiredService<EOSSDKService>())
                 // Register matchmaking services
                 .AddSingleton<IMatchPool, MatchPool>()
+                .AddSingleton<ICompletedRequestStore, CompletedRequestStore>()
                 .AddSingleton<ISessionCreator, EOSSessionCreator>()
                 .AddSingleton<INotifier, LoggingNotifier>()
                 .AddSingleton(matchMakerConfig)
@@ -128,6 +130,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 opts.Interceptors.Add<DebugLoggerServerInterceptor>();                
             });
             builder.Services.AddGrpcReflection();
+            
+            // Register MatchmakingService with completed store
+            builder.Services.AddSingleton<MatchmakingService>();
 
             var app = builder.Build();
             app.UseGrpcMetrics();

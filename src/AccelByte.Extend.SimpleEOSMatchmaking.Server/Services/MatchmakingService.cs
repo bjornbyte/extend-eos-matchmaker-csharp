@@ -15,11 +15,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     public class MatchmakingService : AccelByte.Extend.SimpleEOSMatchmaking.Matchmaking.MatchmakingBase
     {
         private readonly IMatchPool _matchPool;
+        private readonly ICompletedRequestStore? _completedRequestStore;
         private readonly ILogger<MatchmakingService> _logger;
 
-        public MatchmakingService(IMatchPool matchPool, ILogger<MatchmakingService> logger)
+        public MatchmakingService(
+            IMatchPool matchPool, 
+            ICompletedRequestStore? completedRequestStore,
+            ILogger<MatchmakingService> logger)
         {
             _matchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
+            _completedRequestStore = completedRequestStore; // Nullable - optional feature
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -68,8 +73,15 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             AccelByte.Extend.SimpleEOSMatchmaking.GetMatchStatusRequest request,
             ServerCallContext context)
         {
-            // Lookup request
+            // Lookup request in pool first
             var matchRequest = _matchPool.Get(request.RequestId);
+            
+            // If not in pool, check completed store
+            if (matchRequest == null && _completedRequestStore != null)
+            {
+                matchRequest = _completedRequestStore.Get(request.RequestId);
+            }
+            
             if (matchRequest == null)
             {
                 _logger.LogWarning("Match request not found: {RequestId}", request.RequestId);
@@ -126,6 +138,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (removed != null)
             {
                 removed.Status = Model.MatchRequestStatus.Cancelled;
+                removed.CompletedAt = DateTime.UtcNow;
+                
+                // Move to completed store
+                if (_completedRequestStore != null)
+                {
+                    _completedRequestStore.Add(removed);
+                }
+                
                 _logger.LogInformation("Cancelled match request {RequestId}", request.RequestId);
             }
 

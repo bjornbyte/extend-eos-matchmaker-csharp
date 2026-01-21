@@ -24,6 +24,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Model
         public MatchRequestStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? MatchedAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
         public string? SessionId { get; set; }
         public Dictionary<string, string>? Metadata { get; set; }
 

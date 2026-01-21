@@ -25,32 +25,42 @@ When implementing any feature task, you MUST write unit tests alongside the impl
 **For EVERY task involving code implementation, you MUST follow these steps IN ORDER:**
 
 1. **Write the test first** - Create test file with test cases for the functionality
-2. **Run the test** - Execute tests and **VERIFY they FAIL** (RED phase)
-   - If tests don't fail, the test is broken - fix the test
+2. **RED Phase 1: Make it compile** - Write just enough implementation code (stubs, empty methods, default returns) to make the test compile
+   - Run the test and verify it compiles but doesn't pass yet
+   - This creates the minimal API surface needed by the test
+3. **RED Phase 2: Verify assertions fail correctly** - Execute tests and **VERIFY they FAIL in the expected way**
+   - The test must run and fail due to incorrect behavior, not compilation errors
    - Document the failure message to confirm it's failing for the right reason
-   - This proves your test actually tests something
-3. **Write minimal implementation** - Write just enough code to make tests pass
-4. **Run the test again** - Execute tests and **VERIFY they PASS** (GREEN phase)
-5. **Refactor if needed** - Clean up code while keeping tests green
-6. **Repeat** with the next test until sufficient functionality and test coverage are achieved
+   - Verify the assertions are actually being checked (not skipped or bypassed)
+   - This proves your test actually tests something meaningful
+   - If tests don't fail as expected, the test is broken - fix the test
+4. **Write minimal implementation** - Write just enough code to make tests pass
+5. **GREEN Phase: Run the test again** - Execute tests and **VERIFY they PASS**
+6. **Refactor if needed** - Clean up code while keeping tests green
+7. **Repeat** with the next test until sufficient functionality and test coverage are achieved
 
 **YOU MUST NOT:**
 - ❌ Write tests and implementation together
-- ❌ Skip the RED phase
-- ❌ Proceed to the next task without verifying both RED and GREEN phases
+- ❌ Skip the assertion validation RED phase
+- ❌ Proceed to the next task without verifying both RED phases and GREEN phase
 - ❌ Assume tests will fail without actually running them
-- ❌ Write implementation code before seeing tests fail
+- ❌ Write full implementation before seeing assertions fail correctly
+- ❌ Accept a RED phase where tests fail to compile as sufficient validation
 
 **YOU MUST:**
-- ✅ Always see RED before GREEN
-- ✅ Document what the failure looked like in the RED phase
-- ✅ Write minimal code to pass tests
+- ✅ Always see RED (compile) → RED (assertions fail correctly) → GREEN
+- ✅ Document what the assertion failure looked like in RED Phase 2
+- ✅ Verify assertions are actually being checked and failing as expected
+- ✅ Write minimal stub code first to make tests compile
+- ✅ Then write minimal implementation to make assertions pass
 - ✅ Verify tests pass after implementation
 
 This approach ensures:
 - Tests are written first, verifying requirements before implementation
 - Implementation is driven by tests, not the other way around
-- Each test fails initially, proving it actually tests something
+- Each test compiles first with stub implementations
+- Each test then fails with meaningful assertion errors, proving it actually tests something
+- Assertions are validated to fail in the expected way before writing real implementation
 - Code is only written to satisfy tests, avoiding over-engineering
 - Code remains clean, maintainable, and well-structured through continuous refactoring
 
@@ -65,10 +75,12 @@ This approach ensures:
 
 Before marking any implementation task complete, you MUST confirm:
 - [ ] Tests were written BEFORE implementation
-- [ ] Tests were run and FAILED initially (RED phase documented)
+- [ ] RED Phase 1: Stub code was written to make tests compile
+- [ ] RED Phase 2: Tests were run and assertions FAILED in the expected way (documented)
+- [ ] You verified the assertions were actually being checked (not bypassed)
 - [ ] Implementation was written to make tests pass
-- [ ] Tests were run again and PASSED (GREEN phase verified)
-- [ ] You can explain what the failure looked like in the RED phase
+- [ ] GREEN Phase: Tests were run again and PASSED (verified)
+- [ ] You can explain what the assertion failure looked like in RED Phase 2
 
 ### Common TDD Mistakes to Avoid
 
@@ -76,13 +88,18 @@ Before marking any implementation task complete, you MUST confirm:
 - ❌ Writing tests and implementation in the same step
 - ❌ Not running tests before implementing
 - ❌ Assuming tests will fail without verifying
-- ❌ Writing implementation code that "makes it compile" without seeing RED first
-- ❌ Skipping the RED phase to "save time"
+- ❌ Treating compilation errors as sufficient RED validation
+- ❌ Skipping the assertion validation step (RED Phase 2)
+- ❌ Writing full implementation without first seeing assertions fail
+- ❌ Accepting tests that pass immediately after compilation (no RED Phase 2)
+- ❌ Skipping the RED phases to "save time"
 
 **CORRECT APPROACH:**
-- ✅ Always see RED before GREEN
-- ✅ Document the failure message from RED phase
-- ✅ Write minimal code to pass tests
+- ✅ Always see RED (compile) → RED (assertions fail) → GREEN
+- ✅ Write stub code first to make tests compile
+- ✅ Run tests and verify assertions fail in the expected way
+- ✅ Document the assertion failure message from RED Phase 2
+- ✅ Write minimal implementation to make assertions pass
 - ✅ Verify each phase explicitly
 
 ### Test Organization
@@ -133,6 +150,15 @@ Before marking any task as complete, you MUST:
 
 **When updating task status:**
 - Setting to "in_progress": State "Starting TDD cycle - writing tests first"
-- Setting to "completed": State "Completed TDD cycle - verified RED then GREEN phases" and briefly describe what the RED failure looked like
+- Setting to "completed": State "Completed TDD cycle - verified RED (compile) → RED (assertions) → GREEN phases" and briefly describe what the assertion failure looked like in RED Phase 2
 
 If other tasks have introduced compilation errors or test failures, you MUST fix them as part of completing your current task. The project must always be in a working state.
+
+## E2E Testing
+
+**Running E2E Tests:**
+- E2E tests run against a live service instance
+- If you make changes to the service implementation, you MUST restart the service before running E2E tests
+- To restart the service: `docker compose down && docker compose up --build`
+- E2E tests are NOT backward compatible - they test the current implementation
+- Always rebuild the Docker image when testing new features

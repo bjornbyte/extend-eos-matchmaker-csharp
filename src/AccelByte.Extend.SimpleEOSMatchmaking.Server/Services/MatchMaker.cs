@@ -32,6 +32,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         /// Request expiration timeout
         /// </summary>
         public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>
+        /// Retention period for completed requests
+        /// </summary>
+        public TimeSpan RetentionPeriod { get; set; } = TimeSpan.FromSeconds(120);
     }
 
     /// <summary>
@@ -63,6 +68,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         private readonly IMatchPool _matchPool;
         private readonly ISessionCreator _sessionCreator;
         private readonly INotifier _notifier;
+        private readonly ICompletedRequestStore? _completedRequestStore;
         private readonly MatchMakerConfig _config;
         private readonly ILogger<MatchMaker> _logger;
         private Timer? _timer;
@@ -71,12 +77,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             IMatchPool matchPool,
             ISessionCreator sessionCreator,
             INotifier notifier,
+            ICompletedRequestStore? completedRequestStore,
             MatchMakerConfig config,
             ILogger<MatchMaker> logger)
         {
             _matchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
             _sessionCreator = sessionCreator ?? throw new ArgumentNullException(nameof(sessionCreator));
             _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
+            _completedRequestStore = completedRequestStore; // Nullable - optional feature
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -109,11 +117,32 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 
             try
             {
+                // Clean up expired completed requests
+                if (_completedRequestStore != null)
+                {
+                    var expiredCompleted = _completedRequestStore.RemoveExpired(_config.RetentionPeriod);
+                    if (expiredCompleted.Count > 0)
+                    {
+                        _logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
+                    }
+                }
+
                 // Remove expired requests first
                 var expiredRequests = _matchPool.RemoveExpired(_config.RequestTimeout);
                 if (expiredRequests.Count > 0)
                 {
                     _logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
+                    
+                    // Move expired requests to completed store
+                    if (_completedRequestStore != null)
+                    {
+                        foreach (var expiredRequest in expiredRequests)
+                        {
+                            expiredRequest.Status = Model.MatchRequestStatus.Expired;
+                            expiredRequest.CompletedAt = DateTime.UtcNow;
+                            _completedRequestStore.Add(expiredRequest);
+                        }
+                    }
                 }
 
                 // Check if we have enough requests to make a match
@@ -165,6 +194,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                             request.Status = Model.MatchRequestStatus.Matched;
                             request.MatchedAt = DateTime.UtcNow;
                             request.SessionId = sessionInfo.SessionId;
+                            request.CompletedAt = DateTime.UtcNow;
+                        }
+
+                        // Move matched requests to completed store
+                        if (_completedRequestStore != null)
+                        {
+                            foreach (var request in requestsForMatch)
+                            {
+                                _completedRequestStore.Add(request);
+                            }
                         }
 
                         // Notify
