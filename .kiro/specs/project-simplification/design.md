@@ -38,9 +38,9 @@ We classify components into three categories:
 2. **Extension Points** (keep interfaces, provide default implementations):
    
    **Application-Level Extension Points:**
-   - `INotifier` - Notification mechanism when matches are found
+   - `IPlayerNotifier` (renamed from `INotifier`) - Notification mechanism when matches are found (notifies players)
    - `ISessionCreator` - Session provider abstraction (create vs find modes)
-   - `ISessionOwnerNotifier` - Notification for session owners in find mode
+   - `ISessionOwnerNotifier` - Notification for session owners in find mode (notifies game servers)
    
    **Infrastructure-Level Extension Points:**
    - `IMatchPool` - Storage for pending match requests (default: in-memory, consider Redis/database for multi-instance)
@@ -60,9 +60,10 @@ We keep all service interfaces as they represent potential customization points 
 
 **Application-Level Extension Points:**
 
-**INotifier** - Keep as extension point
-- **Purpose**: Developers implement custom notification mechanisms (webhooks, push notifications, etc.)
-- **Current Implementation**: `LoggingNotifier` (default that logs to console)
+**IPlayerNotifier** (renamed from INotifier) - Keep as extension point
+- **Purpose**: Developers implement custom notification mechanisms to notify players when matches are found (webhooks, push notifications, etc.)
+- **Current Implementation**: `LoggingPlayerNotifier` (renamed from `LoggingNotifier`, default that logs to console)
+- **Rationale for Rename**: Creates clear parallel with `ISessionOwnerNotifier` - makes it immediately obvious that this notifies players while the other notifies session owners (game servers)
 - **Documentation Needs**: Mark as extension point, provide webhook example, explain when to customize
 
 **ISessionCreator** - Keep as extension point
@@ -220,10 +221,10 @@ Keep existing integration tests that validate:
 2. **Mark All Extension Points Clearly**
    
    **Application-Level Extension Points:**
-   - Add XML documentation to `INotifier` marking it as an extension point
+   - Add XML documentation to `IPlayerNotifier` (renamed from `INotifier`) marking it as an extension point
    - Add XML documentation to `ISessionCreator` marking it as an extension point
    - Add XML documentation to `ISessionOwnerNotifier` marking it as an extension point
-   - Add TODO comments to `LoggingNotifier` and `StubSessionOwnerNotifier`
+   - Add TODO comments to `LoggingPlayerNotifier` (renamed from `LoggingNotifier`) and `StubSessionOwnerNotifier`
    
    **Infrastructure-Level Extension Points:**
    - Add XML documentation to `IMatchPool` explaining in-memory limitations and when to customize
@@ -287,8 +288,8 @@ Keep existing integration tests that validate:
 5. **Create Extension Point Examples**
    
    **Application-Level Examples:**
-   - Webhook notifier example (HTTP POST)
-   - Message queue notifier example (RabbitMQ/SQS)
+   - Webhook player notifier example (HTTP POST to notify players)
+   - Message queue player notifier example (RabbitMQ/SQS)
    - Custom session owner notifier example
    
    **Infrastructure-Level Examples:**
@@ -340,14 +341,15 @@ Keep existing integration tests that validate:
 - `MatchPool.cs` - Keep `IMatchPool` interface, add XML docs about in-memory limitations and multi-instance considerations
 - `CompletedRequestStore.cs` - Keep `ICompletedRequestStore` interface, add XML docs about durability and retention
 - `MatchMaker.cs` - Remove `IMatchMaker` interface, add inline comments explaining FIFO algorithm and customization points
-- `Notifier.cs` - Add XML docs marking `INotifier` as extension point, add TODO to `LoggingNotifier`
+- `Notifier.cs` - Rename `INotifier` to `IPlayerNotifier`, rename `LoggingNotifier` to `LoggingPlayerNotifier`, add XML docs marking as extension point, add TODO comment
 - `SessionCreator.cs` - Add XML docs marking `ISessionCreator` as extension point
 - `SessionOwnerNotifier.cs` - Add XML docs marking `ISessionOwnerNotifier` as extension point, add TODO to stub
-- `MatchmakingService.cs` - Remove nullable marker from `ICompletedRequestStore`, remove null checks
+- `MatchmakingService.cs` - Remove nullable marker from `ICompletedRequestStore`, remove null checks, update `IPlayerNotifier` reference
 - `ClaimedSessionsCache.cs` - Add XML docs about multi-instance considerations
 
 **Program.cs**
 - Update `IMatchMaker` registration to use concrete `MatchMaker` class
+- Update `INotifier` registration to use `IPlayerNotifier`
 - Add inline comments at all extension point registrations
 - Distinguish between application-level and infrastructure-level extension points
 - Note default implementations are suitable for single-instance deployments

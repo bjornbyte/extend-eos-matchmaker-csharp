@@ -6,70 +6,75 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
 
 ## Tasks
 
-- [-] 1. Make CompletedRequestStore mandatory
+- [x] 1. Make CompletedRequestStore mandatory
   - Remove nullable marker from `ICompletedRequestStore` parameter in `MatchmakingService` constructor
   - Remove nullable marker from `ICompletedRequestStore` parameter in `MatchMaker` constructor
   - Remove all `if (_completedRequestStore != null)` null checks in `MatchmakingService.cs`
   - Remove all `if (_completedRequestStore != null)` null checks in `MatchMaker.cs`
   - _Requirements: 7.1_
 
-- [ ] 2. Remove IMatchMaker interface
-  - [ ] 2.1 Remove `IMatchMaker` interface definition from `MatchMaker.cs`
+- [x] 2. Remove IMatchMaker interface
+  - [x] 2.1 Remove `IMatchMaker` interface definition from `MatchMaker.cs`
     - Keep the concrete `MatchMaker` class
     - _Requirements: 2.1_
   
-  - [ ] 2.2 Update dependency injection in `Program.cs`
+  - [x] 2.2 Update dependency injection in `Program.cs`
     - Change `.AddSingleton<IMatchMaker, MatchMaker>()` to `.AddSingleton<MatchMaker>()`
     - Change `.AddHostedService(sp => sp.GetRequiredService<IMatchMaker>() as MatchMaker)` to `.AddHostedService<MatchMaker>()`
     - _Requirements: 2.1_
 
-- [ ] 3. Add XML documentation to extension point interfaces
-  - [ ] 3.1 Add XML docs to `INotifier` interface
-    - Mark as application-level extension point
-    - Explain when to implement custom notifier
+- [x] 3. Add XML documentation to extension point interfaces
+  - [x] 3.1 Rename INotifier to IPlayerNotifier
+    - Rename `INotifier` interface to `IPlayerNotifier` in `Notifier.cs`
+    - Rename `LoggingNotifier` class to `LoggingPlayerNotifier`
+    - Update all references in `MatchmakingService.cs`
+    - Update all references in `MatchMaker.cs`
+    - Update registration in `Program.cs`
+    - Add XML docs marking as application-level extension point
+    - Explain when to implement custom player notifier
     - Include example scenarios (webhooks, push notifications, message queues)
-    - _Requirements: 13.1, 13.2_
+    - _Requirements: 14.1, 14.2, 14.4, 13.1, 13.2_
   
-  - [ ] 3.2 Add XML docs to `ISessionCreator` interface
+  - [x] 3.2 Add XML docs to `ISessionCreator` interface
     - Mark as application-level extension point
     - Explain the two modes (create vs find)
     - Reference architecture guide for decision tree
     - _Requirements: 13.1, 13.2_
   
-  - [ ] 3.3 Add XML docs to `ISessionOwnerNotifier` interface
+  - [x] 3.3 Add XML docs to `ISessionOwnerNotifier` interface
     - Mark as application-level extension point
     - Explain it's only for find mode
     - Provide example notification mechanisms
     - _Requirements: 13.1, 13.2_
   
-  - [ ] 3.4 Add XML docs to `IMatchPool` interface
+  - [x] 3.4 Add XML docs to `IMatchPool` interface
     - Mark as infrastructure-level extension point
     - Explain in-memory limitations (single-instance only)
     - Note when to implement distributed version (Redis, database)
     - _Requirements: 13.1, 13.2_
   
-  - [ ] 3.5 Add XML docs to `ICompletedRequestStore` interface
+  - [x] 3.5 Add XML docs to `ICompletedRequestStore` interface
     - Mark as infrastructure-level extension point
     - Explain durability considerations (lost on restart)
     - Note when to implement persistent version (database)
     - _Requirements: 13.1, 13.2_
   
-  - [ ] 3.6 Add XML docs to `IClaimedSessionsCache` interface
+  - [x] 3.6 Add XML docs to `IClaimedSessionsCache` interface
     - Mark as infrastructure-level extension point
     - Explain multi-instance considerations
     - Note when to use distributed cache (Redis)
     - _Requirements: 13.1, 13.2_
 
 - [ ] 4. Add TODO comments to stub implementations
-  - [ ] 4.1 Add TODO comment to `LoggingNotifier` class
+  - [x] 4.1 Add TODO comment to `LoggingPlayerNotifier` class
     - Add comment: "// TODO: Replace with your game-specific notification implementation (webhook, push notification, etc.)"
     - _Requirements: 2.4, 13.3_
   
-  - [ ] 4.2 Add TODO comment to `StubSessionOwnerNotifier` class
+  - [x] 4.2 Add TODO comment to `StubSessionOwnerNotifier` class
     - Add comment: "// TODO: Replace with your notification mechanism to game servers (HTTP, gRPC, message queue, etc.)"
     - _Requirements: 2.4, 13.3_
 
-- [ ] 5. Add inline comments to MatchMaker for customization
+- [x] 5. Add inline comments to MatchMaker for customization
   - Add comment at top of `TryMatchAsync()` method explaining FIFO algorithm
   - Add comment before request selection explaining where to add skill-based matching
   - Add comment before match creation explaining where to add metadata filtering
@@ -87,7 +92,7 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
     - Note default is in-memory (no durability across restarts)
     - _Requirements: 13.5_
   
-  - [ ] 6.3 Add comment for INotifier registration
+  - [ ] 6.3 Add comment for IPlayerNotifier registration
     - Explain it's application-level extension point
     - Note default just logs to console
     - _Requirements: 13.5_
@@ -102,7 +107,7 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
     - Note it's only used in find mode
     - _Requirements: 13.5_
 
-- [ ] 7. Checkpoint - Ensure all tests pass
+- [x] 7. Checkpoint - Ensure all tests pass
   - Run `dotnet test src/extend-service-extension-server.sln`
   - Verify all unit tests pass after code changes
   - Ask the user if questions arise
@@ -138,7 +143,7 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
     - _Requirements: 4.1, 13.6_
   
   - [ ] 9.4 Add complete working examples
-    - Webhook notifier example (HTTP POST)
+    - Webhook player notifier example (HTTP POST to notify players)
     - Redis-based MatchPool example
     - Database-backed CompletedRequestStore example
     - Skill-based MatchMaker modification example

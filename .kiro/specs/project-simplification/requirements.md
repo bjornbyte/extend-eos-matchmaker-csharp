@@ -178,3 +178,15 @@ This specification defines requirements for simplifying the Simple EOS Matchmaki
 4. THE Architecture_Guide SHALL have a dedicated section listing all Extension_Points
 5. WHEN code uses an Extension_Point, THEN the registration in Program.cs SHALL include a comment explaining the extension point
 6. THE Extension_Point documentation SHALL include decision criteria for when to use the default vs custom implementation
+
+### Requirement 14: Use Clear and Descriptive Interface Names
+
+**User Story:** As a game developer, I want interface names that clearly indicate their purpose, so that I can quickly understand what each extension point does without reading extensive documentation.
+
+#### Acceptance Criteria
+
+1. WHEN multiple notifier interfaces exist, THEN their names SHALL clearly indicate who or what is being notified
+2. THE INotifier interface SHALL be renamed to IPlayerNotifier to indicate it notifies players
+3. WHEN interface names are generic, THEN they SHALL be made more specific to improve clarity
+4. THE Interface_Names SHALL create clear parallel structure (e.g., IPlayerNotifier vs ISessionOwnerNotifier)
+5. WHEN renaming interfaces, THEN all references, implementations, and documentation SHALL be updated consistently
