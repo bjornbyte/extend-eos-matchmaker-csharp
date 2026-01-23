@@ -133,8 +133,8 @@ MATCHMAKER__REQUESTTIMEOUTSECONDS=60       # Request expiration time
 
 The service supports two modes for session management:
 
-- **Create Mode (Default)**: Matchmaker creates new EOS sessions for each match
-- **Find Mode**: Matchmaker finds existing available EOS sessions created by game servers
+- **create mode (Default)**: Matchmaker creates new EOS sessions for each match
+- **find mode**: Matchmaker finds existing available EOS sessions created by game servers
 
 ```bash
 SESSIONPROVIDER__MODE=create  # or "find"

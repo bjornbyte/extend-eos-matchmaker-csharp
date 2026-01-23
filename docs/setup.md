@@ -73,28 +73,30 @@ cp .env.template .env
 Edit `.env` with your credentials:
 
 ```bash
-# AccelByte Configuration
+# AccelByte Configuration (Required)
 AB_BASE_URL=https://test.accelbyte.io
 AB_CLIENT_ID=your-client-id
 AB_CLIENT_SECRET=your-client-secret
 AB_NAMESPACE=your-namespace
 
-# Service Configuration
-PLUGIN_GRPC_SERVER_AUTH_ENABLED=true
-BASE_PATH=/matchmaking
-
-# EOS Configuration
+# EOS Configuration (Required)
 EOS_PRODUCT_ID=your-product-id
 EOS_SANDBOX_ID=your-sandbox-id
 EOS_DEPLOYMENT_ID=your-deployment-id
 EOS_CLIENT_ID=your-eos-client-id
 EOS_CLIENT_SECRET=your-eos-client-secret
 
-# Matchmaker Configuration (Optional)
+# Service Configuration (Optional - defaults shown)
+PLUGIN_GRPC_SERVER_AUTH_ENABLED=true
+BASE_PATH=/matchmaking
+
+# Matchmaker Configuration (Optional - defaults shown)
 MATCHMAKER__MATCHSIZE=2
 MATCHMAKER__TICKINTERVALSECONDS=1
 MATCHMAKER__REQUESTTIMEOUTSECONDS=60
 ```
+
+> See [Configuration](#configuration) section below for detailed explanation of all parameters.
 
 ### 4. Build and Run with Docker
 
@@ -117,12 +119,66 @@ You should see the Swagger UI HTML response.
 
 ---
 
-## Configuration Options
+## Configuration
 
-### Matchmaker Settings
+### Required Configuration
+
+These credentials are **required** for the service to function. The service will fail to start if any are missing or invalid.
+
+#### AccelByte Credentials
+
+```bash
+AB_BASE_URL=https://test.accelbyte.io
+AB_CLIENT_ID=your-client-id
+AB_CLIENT_SECRET=your-client-secret
+AB_NAMESPACE=your-namespace
+```
+
+**Where to get these:**
+- Login to AGS Admin Portal
+- Navigate to **Admin** → **Namespace** → **Integration** → **OAuth Clients**
+- Create or use existing confidential client with matchmaking permissions
+
+#### Epic Online Services (EOS) Credentials
+
+```bash
+EOS_PRODUCT_ID=your-product-id
+EOS_SANDBOX_ID=your-sandbox-id
+EOS_DEPLOYMENT_ID=your-deployment-id
+EOS_CLIENT_ID=your-eos-client-id
+EOS_CLIENT_SECRET=your-eos-client-secret
+```
+
+**Where to get these:**
+- Login to [Epic Games Developer Portal](https://dev.epicgames.com/)
+- Navigate to your Product → **Product Settings**
+- Copy Product ID, Sandbox ID, Deployment ID, Client ID, and Client Secret
+
+---
+
+### Optional Configuration
+
+These parameters have sensible defaults and only need to be changed for specific use cases.
+
+#### Matchmaker Settings
 
 Configure matchmaking behavior via environment variables or `appsettings.json`:
 
+```bash
+MATCHMAKER__MATCHSIZE=2                    # Default: 2
+MATCHMAKER__TICKINTERVALSECONDS=1          # Default: 1
+MATCHMAKER__REQUESTTIMEOUTSECONDS=60       # Default: 60
+```
+
+**Parameters:**
+
+| Parameter | Default | Description | When to Change |
+|-----------|---------|-------------|----------------|
+| `MatchSize` | `2` | Number of players per match | Change based on your game mode (e.g., 4 for squad, 10 for team deathmatch) |
+| `TickIntervalSeconds` | `1` | How often the matcher runs (in seconds) | Increase to reduce CPU usage in low-traffic scenarios; decrease for faster matching in high-traffic scenarios |
+| `RequestTimeoutSeconds` | `60` | How long requests stay in pool before expiring | Increase for games with longer expected wait times; decrease for fast-paced games where players expect quick matches |
+
+**JSON Format:**
 ```json
 {
   "MatchMaker": {
@@ -133,94 +189,143 @@ Configure matchmaking behavior via environment variables or `appsettings.json`:
 }
 ```
 
-**Environment Variable Format:**
+#### Session Provider Mode
+
+**Default:** `create` mode (service creates new EOS sessions for each match)
+
 ```bash
-MATCHMAKER__MATCHSIZE=4
-MATCHMAKER__TICKINTERVALSECONDS=2
-MATCHMAKER__REQUESTTIMEOUTSECONDS=120
+SESSIONPROVIDER__MODE=create               # Default: create
 ```
 
-**Parameters:**
-- `MatchSize` - Number of players per match (default: 2)
-- `TickIntervalSeconds` - How often the matcher runs (default: 1 second)
-- `RequestTimeoutSeconds` - Request expiration time (default: 60 seconds)
+**When to use Find mode:**
+- Your game servers create EOS sessions and register them
+- You want the matchmaker to find and claim existing sessions
+- You need more control over session lifecycle
 
-### EOS SDK Settings
+**Find Mode Configuration:**
+```bash
+SESSIONPROVIDER__MODE=find
+SESSIONFINDER__BUCKETID=default                          # Default: default
+SESSIONFINDER__MAXSEARCHRESULTS=10                       # Default: 10
+SESSIONFINDER__CLAIMEDSESSIONEXPIRATIONSECONDS=300       # Default: 300
+```
 
-Configure EOS integration via environment variables:
+| Parameter | Default | Description | When to Change |
+|-----------|---------|-------------|----------------|
+| `BucketId` | `default` | EOS bucket to search for sessions | Use different buckets for different game modes or regions |
+| `MaxSearchResults` | `10` | Maximum sessions to retrieve per search | Increase if you have many available sessions; decrease to reduce API calls |
+| `ClaimedSessionExpirationSeconds` | `300` | How long to cache claimed sessions (5 minutes) | Increase for longer session setup times; decrease to allow faster re-claiming |
+
+> See [Architecture Guide](architecture.md#session-provider-modes) for detailed information on both modes and when to use each.
+
+#### Authorization Settings
+
+**Default:** `true` (authorization enabled)
 
 ```bash
+PLUGIN_GRPC_SERVER_AUTH_ENABLED=true       # Default: true
+```
+
+**When to disable:**
+- Local development and testing only
+- ⚠️ **Never disable in production environments**
+
+#### Service Path
+
+**Default:** `/matchmaking`
+
+```bash
+BASE_PATH=/matchmaking                     # Default: /matchmaking
+```
+
+**When to change:**
+- You need a different URL path for routing or organizational purposes
+- Affects all endpoint URLs: `/{BASE_PATH}/v1/request`, `/{BASE_PATH}/apidocs/`
+
+---
+
+## Deployment Scenarios
+
+### Single-Instance Deployment (Default)
+
+**Use case:** Development, testing, small-scale production (< 1000 concurrent players)
+
+**Configuration:** Use default settings with required credentials only.
+
+**What's included:**
+- In-memory match pool (thread-safe, single process)
+- In-memory completed request store (lost on restart)
+- In-memory claimed sessions cache (find mode only)
+- Built-in logging to console
+
+**Limitations:**
+- No horizontal scaling (single instance only)
+- Match pool and request history lost on restart
+- No durability across deployments
+
+**Setup:**
+```bash
+# .env file - only required credentials needed
+AB_BASE_URL=https://test.accelbyte.io
+AB_CLIENT_ID=your-client-id
+AB_CLIENT_SECRET=your-client-secret
+AB_NAMESPACE=your-namespace
+
 EOS_PRODUCT_ID=your-product-id
 EOS_SANDBOX_ID=your-sandbox-id
 EOS_DEPLOYMENT_ID=your-deployment-id
 EOS_CLIENT_ID=your-eos-client-id
 EOS_CLIENT_SECRET=your-eos-client-secret
+
+# All other settings use defaults
 ```
 
-These are required for session creation. The service will fail to start if EOS credentials are missing or invalid.
+### Multi-Instance Deployment (Production Scale)
 
-### Session Provider Mode
+**Use case:** Production environments with high availability and horizontal scaling needs
 
-Configure which session provider implementation to use:
+**Configuration:** Requires custom implementations of infrastructure extension points.
 
-**Create Mode (Default):**
-```json
-{
-  "SessionProvider": {
-    "Mode": "create"
-  }
-}
-```
+**What to customize:**
 
-**Find Mode:**
-```json
-{
-  "SessionProvider": {
-    "Mode": "find"
-  },
-  "SessionFinder": {
-    "BucketId": "default",
-    "MaxSearchResults": 10,
-    "ClaimedSessionExpirationSeconds": 300
-  }
-}
-```
+1. **IMatchPool** - Use distributed storage (Redis, database)
+   - Allows multiple instances to share the same match pool
+   - Provides durability across restarts
+   - See [Architecture Guide - Redis MatchPool Example](architecture.md#redis-matchpool-example)
 
-**Environment Variable Format:**
+2. **ICompletedRequestStore** - Use persistent storage (Redis, database)
+   - Maintains request history across restarts
+   - Enables multi-instance deployments
+   - See [Architecture Guide - Database CompletedRequestStore Example](architecture.md#database-completedrequestore-example)
+
+3. **IClaimedSessionsCache** (Find mode only) - Use distributed cache (Redis)
+   - Prevents race conditions across multiple instances
+   - Required for multi-instance find mode deployments
+   - See [Architecture Guide - Redis ClaimedSessionsCache Example](architecture.md#redis-claimedsessionscache-example)
+
+4. **IPlayerNotifier** - Use production notification mechanism
+   - Replace logging with webhooks, push notifications, or message queues
+   - See [Architecture Guide - Webhook PlayerNotifier Example](architecture.md#webhook-playernotifier-example)
+
+**Setup:**
 ```bash
-SESSIONPROVIDER__MODE=find
-SESSIONFINDER__BUCKETID=default
-SESSIONFINDER__MAXSEARCHRESULTS=10
-SESSIONFINDER__CLAIMEDSESSIONEXPIRATIONSECONDS=300
+# Same required credentials as single-instance
+# Plus any configuration needed for your custom implementations
+
+# Example: Redis connection string for distributed storage
+REDIS_CONNECTION_STRING=redis:6379
+
+# Example: Database connection for persistent storage
+DATABASE_CONNECTION_STRING=Server=db;Database=matchmaking;...
 ```
 
-> See [Architecture Guide](architecture.md#session-provider-modes) for detailed information on both modes and when to use each.
+**Deployment considerations:**
+- Load balancer required for multiple instances
+- Shared storage (Redis/database) must be highly available
+- Monitor distributed storage performance and capacity
+- Consider regional deployments for global games
 
-### Authorization Settings
-
-**Enable Authorization** (Production):
-```bash
-PLUGIN_GRPC_SERVER_AUTH_ENABLED=true
-```
-
-**Disable Authorization** (Local Development Only):
-```bash
-PLUGIN_GRPC_SERVER_AUTH_ENABLED=false
-```
-
-⚠️ **Warning:** Never disable authorization in production environments.
-
-### Service Path
-
-Configure the base path for the service:
-
-```bash
-BASE_PATH=/matchmaking
-```
-
-This affects all endpoint URLs:
-- `/matchmaking/v1/request`
-- `/matchmaking/apidocs/`
+> See [Architecture Guide - Extension Points](architecture.md#extension-points) for complete implementation examples.
 
 ---
 
@@ -263,6 +368,8 @@ Edit `src/AccelByte.Extend.SimpleEOSMatchmaking.Server/appsettings.json`:
   }
 }
 ```
+
+> See [Configuration](#configuration) section for detailed explanation of all parameters and defaults.
 
 ### 4. Run the Service
 
@@ -322,7 +429,7 @@ extend-helper-cli image-upload \
 
 Navigate to your app in the Admin Portal and configure:
 
-**Environment Variables:**
+**Required Environment Variables:**
 - `AB_CLIENT_ID` - Your OAuth client ID
 - `AB_CLIENT_SECRET` - Your OAuth client secret (mark as secret)
 - `EOS_PRODUCT_ID` - Your EOS product ID
@@ -331,10 +438,14 @@ Navigate to your app in the Admin Portal and configure:
 - `EOS_CLIENT_ID` - Your EOS client ID
 - `EOS_CLIENT_SECRET` - Your EOS client secret (mark as secret)
 
-**Optional Configuration:**
+**Optional Configuration** (only if changing defaults):
 - `MATCHMAKER__MATCHSIZE` - Match size (default: 2)
 - `MATCHMAKER__TICKINTERVALSECONDS` - Tick interval (default: 1)
 - `MATCHMAKER__REQUESTTIMEOUTSECONDS` - Timeout (default: 60)
+- `SESSIONPROVIDER__MODE` - Session provider mode (default: create)
+
+> See [Configuration](#configuration) section for complete list of optional parameters and when to change them.
+> See [Deployment Scenarios](#deployment-scenarios) for single-instance vs multi-instance deployment guidance.
 
 #### 5. Deploy Image
 

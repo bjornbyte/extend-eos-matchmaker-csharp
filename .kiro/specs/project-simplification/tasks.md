@@ -124,81 +124,81 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
     - Use progressive disclosure pattern (brief + link to details)
     - _Requirements: 1.2_
 
-- [ ] 9. Enhance docs/architecture.md
-  - [ ] 9.1 Add "Extension Points" section
+- [x] 9. Enhance docs/architecture.md
+  - [x] 9.1 Add "Extension Points" section
     - Create subsection: "Application-Level Extension Points"
     - Create subsection: "Infrastructure-Level Extension Points"
     - List all extension point interfaces with descriptions
     - _Requirements: 13.4_
   
-  - [ ] 9.2 Add "Core Customization Points" section
+  - [x] 9.2 Add "Core Customization Points" section
     - Explain how to modify MatchMaker directly
     - Provide inline code examples for common modifications
     - _Requirements: 12.1, 12.2_
   
-  - [ ] 9.3 Add deployment considerations section
+  - [x] 9.3 Add deployment considerations section
     - Explain single-instance vs multi-instance implications
     - Explain in-memory vs distributed storage trade-offs
     - Provide decision criteria for when to customize infrastructure
     - _Requirements: 4.1, 13.6_
   
-  - [ ] 9.4 Add complete working examples
+  - [x] 9.4 Add complete working examples
     - Webhook player notifier example (HTTP POST to notify players)
     - Redis-based MatchPool example
     - Database-backed CompletedRequestStore example
     - Skill-based MatchMaker modification example
     - _Requirements: 12.2, 12.4_
   
-  - [ ] 9.5 Add session provider decision tree
+  - [x] 9.5 Add session provider decision tree
     - Create clear decision tree for create vs find mode
     - Explain use cases for each mode
     - _Requirements: 4.5_
   
-  - [ ] 9.6 Consolidate technical details
+  - [x] 9.6 Consolidate technical details
     - Ensure all technical explanations are in architecture.md
     - Remove duplicates from other files
     - _Requirements: 1.1, 1.5_
 
-- [ ] 10. Improve docs/setup.md
-  - [ ] 10.1 Separate required from optional configuration
+- [x] 10. Improve docs/setup.md
+  - [x] 10.1 Separate required from optional configuration
     - Create "Required Configuration" section (credentials only)
     - Create "Optional Configuration" section (tuning parameters)
     - _Requirements: 3.3_
   
-  - [ ] 10.2 Add deployment scenarios section
+  - [x] 10.2 Add deployment scenarios section
     - Single-instance deployment (default configuration)
     - Multi-instance deployment (what to customize)
     - _Requirements: 3.5_
   
-  - [ ] 10.3 Explain configuration defaults
+  - [x] 10.3 Explain configuration defaults
     - Document default value for each optional parameter
     - Explain when and why to change each setting
     - _Requirements: 3.1, 3.5_
 
-- [ ] 11. Enhance docs/operations.md
-  - [ ] 11.1 Add observability setup guide
+- [x] 11. Enhance docs/operations.md
+  - [x] 11.1 Add observability setup guide
     - Separate basic logging from advanced metrics/tracing
     - Provide step-by-step setup for Prometheus and Zipkin
     - _Requirements: 11.2, 11.3_
   
-  - [ ] 11.2 Add multi-instance deployment considerations
+  - [x] 11.2 Add multi-instance deployment considerations
     - Explain which components need distributed implementations
     - Link to architecture guide examples
     - _Requirements: 11.6_
 
-- [ ] 12. Verify documentation consistency
-  - [ ] 12.1 Check for duplicate explanations
+- [x] 12. Verify documentation consistency
+  - [x] 12.1 Check for duplicate explanations
     - Search for concepts explained in multiple files
     - Consolidate to single source of truth
     - Add cross-references
     - _Requirements: 1.1, 1.2_
   
-  - [ ] 12.2 Verify all cross-references work
+  - [x] 12.2 Verify all cross-references work
     - Test all links between documentation files
     - Verify anchor links work correctly
     - _Requirements: 1.2_
   
-  - [ ] 12.3 Ensure consistent terminology
+  - [x] 12.3 Ensure consistent terminology
     - Use same terms throughout all documentation
     - Update glossary if needed
     - _Requirements: 1.5_

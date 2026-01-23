@@ -354,9 +354,9 @@ public class GameLiftServerProvider : IDedicatedServerProvider
 }
 ```
 
-**Example: Agones (Kubernetes) Integration**
+**Example: Custom Server Provider Integration**
 ```csharp
-public class AgonesServerProvider : IDedicatedServerProvider
+public class CustomServerProvider : IDedicatedServerProvider
 {
     private readonly HttpClient _httpClient;
     private readonly string _allocatorEndpoint;
@@ -364,7 +364,7 @@ public class AgonesServerProvider : IDedicatedServerProvider
     public async Task<DedicatedServer> AllocateServerAsync()
     {
         var response = await _httpClient.PostAsync($"{_allocatorEndpoint}/allocate", null);
-        var allocation = await response.Content.ReadFromJsonAsync<GameServerAllocation>();
+        var allocation = await response.Content.ReadFromJsonAsync<ServerAllocation>();
         
         return new DedicatedServer
         {
@@ -389,7 +389,7 @@ This extension is not included in the sample but demonstrates how the architectu
 **Use Create Mode when:**
 - Players connect peer-to-peer (no dedicated servers)
 - You want the matchmaker to orchestrate server allocation
-- You're integrating with a dedicated server provider (GameLift, Agones, etc.)
+- You're integrating with a dedicated server provider (GameLift, custom allocator, etc.)
 - Sessions are ephemeral and created on-demand
 
 **Use Find Mode when:**
@@ -617,6 +617,792 @@ To use a custom notifier, register it in `Program.cs`:
 // Replace LoggingNotifier with your implementation
 builder.Services.AddSingleton<INotifier, YourCustomNotifier>();
 ```
+
+---
+
+## Extension Points
+
+The matchmaking service is designed with clear extension points that allow you to customize behavior for your specific game and infrastructure needs. Extension points are categorized into two levels:
+
+### Application-Level Extension Points
+
+These interfaces define how the matchmaking service integrates with your game-specific systems. You should implement custom versions of these interfaces to match your game's notification mechanisms and session management approach.
+
+#### IPlayerNotifier
+
+**Purpose:** Notifies players when matches are found.
+
+**When to Implement:**
+- You need to send push notifications to mobile devices
+- You want to notify players via webhooks
+- You need to integrate with a message queue system
+- You want to send in-game notifications through your lobby service
+
+**Default Implementation:** `LoggingPlayerNotifier` - Logs match events to console (suitable for development/testing only)
+
+**Interface:**
+```csharp
+public interface IPlayerNotifier
+{
+    Task NotifyMatchAsync(SessionInfo sessionInfo);
+}
+```
+
+**Example Scenarios:**
+- **Push Notifications:** Send Firebase Cloud Messaging or Apple Push Notification Service alerts
+- **Webhooks:** HTTP POST to your game backend with match details
+- **Message Queues:** Publish to RabbitMQ, AWS SQS, or Azure Service Bus
+- **Lobby Service:** Call your lobby service API to notify connected players
+
+**See:** [Complete webhook example](#webhook-player-notifier-example) below
+
+#### ISessionCreator
+
+**Purpose:** Abstracts session provider modes (create vs find).
+
+**When to Implement:**
+- You want to customize session creation logic
+- You need to integrate with a different session backend
+- You want to add custom session metadata or attributes
+
+**Default Implementations:**
+- `EOSSessionCreator` - Creates new EOS sessions (create mode)
+- `EOSSessionFinder` - Finds existing EOS sessions (find mode)
+
+**Interface:**
+```csharp
+public interface ISessionCreator
+{
+    Task<SessionInfo> GetSessionAsync(Match match);
+}
+```
+
+**Modes:**
+- **Create Mode:** Matchmaker creates new sessions for each match (P2P or on-demand servers)
+- **Find Mode:** Matchmaker finds existing sessions created by game servers
+
+**See:** [Session Provider Decision Tree](#session-provider-decision-tree) below
+
+#### ISessionOwnerNotifier
+
+**Purpose:** Notifies game servers when their session is claimed (find mode only).
+
+**When to Implement:**
+- You're using find mode with player-hosted or dedicated servers
+- Game servers need to prepare for incoming players
+- You need to update server state when a session is claimed
+
+**Default Implementation:** `StubSessionOwnerNotifier` - Logs notifications to console (must be replaced for production)
+
+**Interface:**
+```csharp
+public interface ISessionOwnerNotifier
+{
+    Task NotifySessionClaimedAsync(string sessionId, Match match, string connectionInfo);
+}
+```
+
+**Example Mechanisms:**
+- **HTTP POST:** Game server exposes webhook endpoint
+- **gRPC:** Call game server's gRPC service
+- **Message Queue:** Publish to RabbitMQ, AWS SQS, Azure Service Bus
+- **WebSocket:** Send message over persistent connection
+
+**Note:** Only used in find mode. Not needed for create mode.
+
+### Infrastructure-Level Extension Points
+
+These interfaces define how the matchmaking service stores and manages data. The default implementations use in-memory storage suitable for single-instance deployments. Implement custom versions when you need distributed storage, durability, or multi-instance deployments.
+
+#### IMatchPool
+
+**Purpose:** Storage for pending match requests.
+
+**When to Implement:**
+- **Multi-instance deployments:** Multiple matchmaker instances need shared state
+- **High availability:** Requests should survive service restarts
+- **Large-scale matchmaking:** Need external queue system for performance
+
+**Default Implementation:** `MatchPool` - Thread-safe in-memory storage (single-instance only)
+
+**Limitations of Default:**
+- Lost on service restart (no durability)
+- Cannot be shared across multiple instances
+- Limited by server memory
+
+**Interface:**
+```csharp
+public interface IMatchPool
+{
+    void Add(MatchRequest request);
+    bool Remove(string requestId);
+    MatchRequest? Get(string requestId);
+    MatchRequest? GetByUserId(string userId);
+    List<MatchRequest> GetOldest(int count);
+    List<MatchRequest> RemoveExpired(TimeSpan timeout);
+}
+```
+
+**Custom Implementation Scenarios:**
+- **Redis:** Distributed cache for multi-instance deployments
+- **Database:** SQL Server or PostgreSQL for durability and querying
+- **Message Queue:** RabbitMQ or AWS SQS for high-throughput scenarios
+
+**See:** [Redis-based MatchPool example](#redis-based-matchpool-example) below
+
+#### ICompletedRequestStore
+
+**Purpose:** Storage for completed requests with retention period.
+
+**When to Implement:**
+- **Service restart durability:** Completed requests should survive restarts
+- **Multi-instance deployments:** Multiple instances need shared state
+- **Long retention periods:** Need database with indexing for efficient queries
+- **Audit requirements:** Need persistent storage for compliance
+
+**Default Implementation:** `CompletedRequestStore` - Thread-safe in-memory storage with automatic expiration
+
+**Limitations of Default:**
+- Lost on service restart (no durability)
+- Cannot be shared across multiple instances
+- Limited retention by server memory
+
+**Interface:**
+```csharp
+public interface ICompletedRequestStore
+{
+    void Add(MatchRequest request);
+    MatchRequest? Get(string requestId);
+    void RemoveExpired(TimeSpan retentionPeriod);
+}
+```
+
+**Custom Implementation Scenarios:**
+- **Redis:** Distributed cache with TTL for multi-instance deployments
+- **Database:** SQL Server or PostgreSQL for long-term retention and querying
+- **Time-series database:** InfluxDB or TimescaleDB for analytics
+
+**See:** [Database-backed CompletedRequestStore example](#database-backed-completedrequeststore-example) below
+
+#### IClaimedSessionsCache
+
+**Purpose:** Cache for claimed sessions to prevent race conditions (find mode only).
+
+**When to Implement:**
+- **Multi-instance deployments:** Multiple matchmaker instances need shared cache
+- **Find mode at scale:** High concurrency requires distributed coordination
+
+**Default Implementation:** `InMemoryClaimedSessionsCache` - Thread-safe in-memory cache with automatic expiration
+
+**Limitations of Default:**
+- Cannot be shared across multiple instances
+- Race conditions possible in multi-instance deployments
+
+**Interface:**
+```csharp
+public interface IClaimedSessionsCache
+{
+    bool TryAdd(string sessionId, DateTime claimedAt);
+    bool Contains(string sessionId);
+    void RemoveExpired(TimeSpan expirationTime);
+}
+```
+
+**Custom Implementation Scenarios:**
+- **Redis:** Distributed cache with TTL for multi-instance deployments
+- **Distributed lock service:** Consul or etcd for coordination
+
+**Note:** Only used in find mode. Not needed for create mode.
+
+---
+
+## Core Customization Points
+
+While extension points allow you to plug in custom implementations, some customizations require modifying the core matching logic directly. The primary customization point is the `MatchMaker` class.
+
+### MatchMaker Customization
+
+**Location:** `Services/MatchMaker.cs`
+
+The `MatchMaker` class implements the core matching algorithm. The default implementation uses a simple FIFO (First-In-First-Out) algorithm that matches the oldest N requests together. This ensures fairness but doesn't consider player skill, region, or other factors.
+
+**When to Customize:**
+- You need skill-based matchmaking (MMR/ELO)
+- You want region-based matching
+- You need role-based matching (tank, healer, DPS)
+- You want to keep parties/groups together
+- You need custom match quality scoring
+
+**How to Customize:**
+
+The `TryMatchAsync()` method contains the matching algorithm. Modify this method directly to implement your custom logic. The method already includes inline comments marking customization points.
+
+#### Example 1: Skill-Based Matching (MMR/ELO)
+
+Add skill metadata to match requests and filter by skill range:
+
+```csharp
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
+{
+    var matches = new List<Match>();
+    
+    try
+    {
+        // ... expiration logic ...
+        
+        // SKILL-BASED MATCHING
+        // Group requests by skill bracket
+        var allRequests = _matchPool.GetAll();
+        var skillBrackets = allRequests
+            .Where(r => r.Metadata != null && r.Metadata.ContainsKey("mmr"))
+            .GroupBy(r => GetSkillBracket(int.Parse(r.Metadata["mmr"])))
+            .OrderBy(g => g.Key); // Match lower skill brackets first
+        
+        foreach (var bracket in skillBrackets)
+        {
+            var bracketRequests = bracket.OrderBy(r => r.CreatedAt).ToList();
+            
+            while (bracketRequests.Count >= _config.MatchSize)
+            {
+                // Take oldest N requests from this skill bracket
+                var requestsForMatch = bracketRequests.Take(_config.MatchSize).ToList();
+                bracketRequests.RemoveRange(0, _config.MatchSize);
+                
+                // Remove from pool and create match
+                foreach (var request in requestsForMatch)
+                {
+                    _matchPool.Remove(request.RequestId);
+                }
+                
+                var match = new Match(requestsForMatch);
+                // ... session creation and notification ...
+                matches.Add(match);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error in TryMatchAsync");
+    }
+    
+    return matches;
+}
+
+// Helper method to determine skill bracket
+private int GetSkillBracket(int mmr)
+{
+    // Bronze: 0-999, Silver: 1000-1999, Gold: 2000-2999, etc.
+    return mmr / 1000;
+}
+```
+
+**Submitting Requests with MMR:**
+```csharp
+var request = new MatchRequest
+{
+    UserId = userId,
+    Metadata = new Dictionary<string, string>
+    {
+        { "mmr", "1500" } // Player's MMR rating
+    }
+};
+```
+
+#### Example 2: Region-Based Matching
+
+Group requests by region to minimize latency:
+
+```csharp
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
+{
+    var matches = new List<Match>();
+    
+    try
+    {
+        // ... expiration logic ...
+        
+        // REGION-BASED MATCHING
+        // Group requests by region
+        var allRequests = _matchPool.GetAll();
+        var regionGroups = allRequests
+            .Where(r => r.Metadata != null && r.Metadata.ContainsKey("region"))
+            .GroupBy(r => r.Metadata["region"]);
+        
+        foreach (var regionGroup in regionGroups)
+        {
+            var regionRequests = regionGroup.OrderBy(r => r.CreatedAt).ToList();
+            
+            while (regionRequests.Count >= _config.MatchSize)
+            {
+                // Take oldest N requests from this region
+                var requestsForMatch = regionRequests.Take(_config.MatchSize).ToList();
+                regionRequests.RemoveRange(0, _config.MatchSize);
+                
+                // Remove from pool and create match
+                foreach (var request in requestsForMatch)
+                {
+                    _matchPool.Remove(request.RequestId);
+                }
+                
+                var match = new Match(requestsForMatch);
+                // ... session creation and notification ...
+                
+                _logger.LogInformation(
+                    "Created region-based match {MatchId} for region {Region}",
+                    match.MatchId, regionGroup.Key);
+                
+                matches.Add(match);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error in TryMatchAsync");
+    }
+    
+    return matches;
+}
+```
+
+**Submitting Requests with Region:**
+```csharp
+var request = new MatchRequest
+{
+    UserId = userId,
+    Metadata = new Dictionary<string, string>
+    {
+        { "region", "us-west" } // Player's preferred region
+    }
+};
+```
+
+#### Example 3: Role-Based Matching (Team Composition)
+
+Ensure balanced team composition for team-based games:
+
+```csharp
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
+{
+    var matches = new List<Match>();
+    
+    try
+    {
+        // ... expiration logic ...
+        
+        // ROLE-BASED MATCHING
+        // Required composition: 1 tank, 1 healer, 2 DPS
+        var allRequests = _matchPool.GetAll()
+            .Where(r => r.Metadata != null && r.Metadata.ContainsKey("role"))
+            .ToList();
+        
+        var tanks = allRequests.Where(r => r.Metadata["role"] == "tank")
+            .OrderBy(r => r.CreatedAt).ToList();
+        var healers = allRequests.Where(r => r.Metadata["role"] == "healer")
+            .OrderBy(r => r.CreatedAt).ToList();
+        var dps = allRequests.Where(r => r.Metadata["role"] == "dps")
+            .OrderBy(r => r.CreatedAt).ToList();
+        
+        // Create matches while we have the required composition
+        while (tanks.Count >= 1 && healers.Count >= 1 && dps.Count >= 2)
+        {
+            var requestsForMatch = new List<MatchRequest>
+            {
+                tanks[0],    // 1 tank
+                healers[0],  // 1 healer
+                dps[0],      // 1 dps
+                dps[1]       // 1 dps
+            };
+            
+            // Remove from pool
+            foreach (var request in requestsForMatch)
+            {
+                _matchPool.Remove(request.RequestId);
+            }
+            
+            // Remove from local lists
+            tanks.RemoveAt(0);
+            healers.RemoveAt(0);
+            dps.RemoveRange(0, 2);
+            
+            var match = new Match(requestsForMatch);
+            // ... session creation and notification ...
+            
+            _logger.LogInformation(
+                "Created role-balanced match {MatchId} (1 tank, 1 healer, 2 dps)",
+                match.MatchId);
+            
+            matches.Add(match);
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error in TryMatchAsync");
+    }
+    
+    return matches;
+}
+```
+
+**Submitting Requests with Role:**
+```csharp
+var request = new MatchRequest
+{
+    UserId = userId,
+    Metadata = new Dictionary<string, string>
+    {
+        { "role", "tank" } // Player's selected role
+    }
+};
+```
+
+#### Example 4: Combined Skill + Region Matching
+
+Combine multiple criteria for more sophisticated matching:
+
+```csharp
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
+{
+    var matches = new List<Match>();
+    
+    try
+    {
+        // ... expiration logic ...
+        
+        // COMBINED SKILL + REGION MATCHING
+        var allRequests = _matchPool.GetAll()
+            .Where(r => r.Metadata != null && 
+                       r.Metadata.ContainsKey("mmr") && 
+                       r.Metadata.ContainsKey("region"))
+            .ToList();
+        
+        // Group by region first, then by skill bracket
+        var groups = allRequests
+            .GroupBy(r => new 
+            { 
+                Region = r.Metadata["region"],
+                SkillBracket = GetSkillBracket(int.Parse(r.Metadata["mmr"]))
+            });
+        
+        foreach (var group in groups)
+        {
+            var groupRequests = group.OrderBy(r => r.CreatedAt).ToList();
+            
+            while (groupRequests.Count >= _config.MatchSize)
+            {
+                var requestsForMatch = groupRequests.Take(_config.MatchSize).ToList();
+                groupRequests.RemoveRange(0, _config.MatchSize);
+                
+                foreach (var request in requestsForMatch)
+                {
+                    _matchPool.Remove(request.RequestId);
+                }
+                
+                var match = new Match(requestsForMatch);
+                // ... session creation and notification ...
+                
+                _logger.LogInformation(
+                    "Created match {MatchId} for region {Region}, skill bracket {Bracket}",
+                    match.MatchId, group.Key.Region, group.Key.SkillBracket);
+                
+                matches.Add(match);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error in TryMatchAsync");
+    }
+    
+    return matches;
+}
+
+private int GetSkillBracket(int mmr)
+{
+    return mmr / 1000; // 0-999, 1000-1999, 2000-2999, etc.
+}
+```
+
+#### Best Practices for MatchMaker Customization
+
+1. **Always maintain FIFO within groups:** Even with filtering, match the oldest requests first within each group to ensure fairness
+2. **Handle edge cases:** What happens when there aren't enough players in a skill bracket or region?
+3. **Consider fallback logic:** After waiting too long, should you relax matching criteria?
+4. **Log match quality:** Add metrics to track average skill difference, wait times, etc.
+5. **Test thoroughly:** Custom matching logic can have subtle bugs that affect player experience
+6. **Validate metadata:** Always check that required metadata exists before using it
+7. **Keep it simple:** Complex matching algorithms can increase wait times and reduce match quality
+
+---
+
+## Deployment Considerations
+
+The matchmaking service can be deployed in different configurations depending on your scale, availability, and infrastructure requirements. Understanding the trade-offs between single-instance and multi-instance deployments is crucial for choosing the right approach.
+
+### Single-Instance Deployment (Default)
+
+The default configuration uses in-memory storage and is designed for single-instance deployments.
+
+**Characteristics:**
+- One matchmaker instance handles all requests
+- In-memory storage for match pool and completed requests
+- No external dependencies (Redis, database)
+- Simple to deploy and operate
+- Suitable for development, testing, and moderate production loads
+
+**Advantages:**
+- ✅ Simple setup - no external dependencies
+- ✅ Low latency - all data in memory
+- ✅ Easy to debug and troubleshoot
+- ✅ Lower infrastructure costs
+- ✅ Sufficient for most games (up to ~1000 concurrent players)
+
+**Limitations:**
+- ❌ No high availability - single point of failure
+- ❌ Data lost on restart - pending requests and completed request history
+- ❌ Limited by single server resources (CPU, memory)
+- ❌ Cannot scale horizontally
+
+**When to Use:**
+- Development and testing environments
+- Small to medium-sized games (< 1000 concurrent players)
+- Games with tolerance for brief downtime during deployments
+- Cost-sensitive deployments
+
+**Configuration:**
+```json
+{
+  "MatchMaker": {
+    "MatchSize": 2,
+    "TickInterval": "00:00:01",
+    "RequestTimeout": "00:01:00"
+  }
+}
+```
+
+No additional infrastructure required - just deploy the service.
+
+### Multi-Instance Deployment
+
+For high availability and horizontal scaling, deploy multiple matchmaker instances with distributed storage.
+
+**Characteristics:**
+- Multiple matchmaker instances behind a load balancer
+- Distributed storage (Redis, database) for shared state
+- External dependencies required
+- More complex to deploy and operate
+- Suitable for large-scale production deployments
+
+**Advantages:**
+- ✅ High availability - no single point of failure
+- ✅ Horizontal scaling - add more instances as needed
+- ✅ Data durability - survives instance restarts
+- ✅ Better performance under high load
+
+**Limitations:**
+- ❌ More complex setup and operation
+- ❌ Higher infrastructure costs (Redis, database, load balancer)
+- ❌ Slightly higher latency (network calls to external storage)
+- ❌ Requires distributed systems expertise
+
+**When to Use:**
+- Large-scale games (> 1000 concurrent players)
+- Production environments requiring high availability
+- Games with zero-tolerance for downtime
+- When data durability is critical
+
+**Required Customizations:**
+
+To deploy multiple instances, you must implement distributed versions of:
+
+1. **IMatchPool** - Use Redis or database for shared match pool
+2. **ICompletedRequestStore** - Use Redis or database for shared completed requests
+3. **IClaimedSessionsCache** (find mode only) - Use Redis for shared claimed sessions cache
+
+**See:** [Complete implementation examples](#complete-working-examples) below
+
+### Storage Trade-offs
+
+Understanding the trade-offs between in-memory and distributed storage helps you make informed decisions.
+
+#### In-Memory Storage (Default)
+
+**Pros:**
+- Extremely fast (no network latency)
+- Simple to implement and debug
+- No external dependencies
+- Lower infrastructure costs
+
+**Cons:**
+- Data lost on restart
+- Cannot be shared across instances
+- Limited by server memory
+- No durability guarantees
+
+**Best For:**
+- Single-instance deployments
+- Development and testing
+- Stateless or ephemeral data
+- Cost-sensitive deployments
+
+#### Redis (Distributed Cache)
+
+**Pros:**
+- Fast (low network latency)
+- Shared across multiple instances
+- Built-in TTL for automatic expiration
+- High availability with Redis Cluster
+- Relatively simple to operate
+
+**Cons:**
+- Requires Redis infrastructure
+- Data lost if Redis crashes (unless using persistence)
+- Additional cost
+- Network latency vs in-memory
+
+**Best For:**
+- Multi-instance deployments
+- Caching with TTL
+- High-performance distributed state
+- When eventual consistency is acceptable
+
+**Use Cases:**
+- IMatchPool (shared pending requests)
+- ICompletedRequestStore (shared completed requests with TTL)
+- IClaimedSessionsCache (shared claimed sessions with TTL)
+
+#### Database (SQL/NoSQL)
+
+**Pros:**
+- Durable - survives restarts and crashes
+- Queryable - complex queries and analytics
+- Long-term retention
+- ACID guarantees (SQL)
+- Backup and recovery
+
+**Cons:**
+- Slower than Redis or in-memory
+- More complex to operate
+- Higher infrastructure costs
+- Requires schema management (SQL)
+
+**Best For:**
+- Long-term data retention
+- Audit and compliance requirements
+- Complex queries and analytics
+- When durability is critical
+
+**Use Cases:**
+- ICompletedRequestStore (long-term retention for analytics)
+- IMatchPool (if durability is more important than performance)
+
+### Decision Criteria
+
+Use this decision tree to choose the right deployment approach:
+
+```
+Do you need high availability (zero downtime)?
+├─ YES → Multi-instance deployment
+│   ├─ Implement distributed IMatchPool (Redis)
+│   ├─ Implement distributed ICompletedRequestStore (Redis or database)
+│   └─ If using find mode: Implement distributed IClaimedSessionsCache (Redis)
+│
+└─ NO → Can you tolerate brief downtime during deployments?
+    ├─ YES → Single-instance deployment (default)
+    │   └─ Use default in-memory implementations
+    │
+    └─ NO → Do you need data durability (survive restarts)?
+        ├─ YES → Single-instance with database
+        │   ├─ Implement database-backed ICompletedRequestStore
+        │   └─ Consider database-backed IMatchPool
+        │
+        └─ NO → Single-instance deployment (default)
+            └─ Use default in-memory implementations
+```
+
+**Additional Considerations:**
+
+- **Concurrent players:** < 1000 → Single-instance, > 1000 → Multi-instance
+- **Geographic distribution:** Multiple regions → Multi-instance per region
+- **Budget:** Limited → Single-instance, Flexible → Multi-instance
+- **Operational complexity:** Limited expertise → Single-instance, Experienced team → Multi-instance
+- **Data retention:** Short-term → In-memory, Long-term → Database
+- **Compliance:** Audit requirements → Database with retention
+
+### Infrastructure Customization Guidelines
+
+When customizing infrastructure components, follow these guidelines:
+
+#### When to Customize IMatchPool
+
+**Customize when:**
+- Deploying multiple instances (required)
+- Need data durability across restarts
+- Pool size exceeds server memory
+- Need to query or analyze pending requests
+
+**Keep default when:**
+- Single-instance deployment
+- Moderate load (< 1000 concurrent players)
+- Acceptable to lose pending requests on restart
+
+**Implementation options:**
+- Redis: Best for multi-instance, high performance
+- Database: Best for durability and querying
+- Message Queue: Best for very high throughput
+
+#### When to Customize ICompletedRequestStore
+
+**Customize when:**
+- Need data durability across restarts
+- Deploying multiple instances (required)
+- Long retention periods (> 1 hour)
+- Need to query completed requests for analytics
+- Compliance or audit requirements
+
+**Keep default when:**
+- Single-instance deployment
+- Short retention periods (< 1 hour)
+- No analytics requirements
+- Acceptable to lose history on restart
+
+**Implementation options:**
+- Redis: Best for multi-instance, short retention (< 24 hours)
+- Database: Best for long retention, analytics, compliance
+- Time-series database: Best for analytics and metrics
+
+#### When to Customize IClaimedSessionsCache (Find Mode Only)
+
+**Customize when:**
+- Deploying multiple instances in find mode (required)
+- High concurrency in find mode
+
+**Keep default when:**
+- Single-instance deployment
+- Using create mode (not needed)
+- Low concurrency in find mode
+
+**Implementation options:**
+- Redis: Best choice for distributed cache with TTL
+- Distributed lock service: Consul, etcd for coordination
+
+### Monitoring and Observability
+
+Regardless of deployment type, ensure proper monitoring:
+
+**Key Metrics:**
+- Match pool size (gauge)
+- Match creation rate (counter)
+- Match creation latency (histogram)
+- Request timeout rate (counter)
+- Session creation success/failure rate (counter)
+
+**Distributed Deployment Additional Metrics:**
+- Redis connection pool usage
+- Database query latency
+- Cache hit/miss rates
+- Cross-instance coordination latency
+
+**See:** [Operations Guide](operations.md) for detailed observability setup
 
 ---
 
@@ -891,8 +1677,805 @@ PLUGIN_GRPC_SERVER_AUTH_ENABLED=false
 
 ---
 
+## Complete Working Examples
+
+This section provides complete, working code examples for common customizations. These examples are production-ready and can be adapted to your specific infrastructure.
+
+### Webhook Player Notifier Example
+
+This example shows how to implement a player notifier that sends HTTP POST requests to notify players when matches are found.
+
+**Use Case:** Notify your game backend when matches are created so it can push notifications to players.
+
+**Implementation:**
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
+using Microsoft.Extensions.Logging;
+
+namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
+{
+    /// <summary>
+    /// Player notifier that sends HTTP POST webhooks to notify players
+    /// </summary>
+    public class WebhookPlayerNotifier : IPlayerNotifier
+    {
+        private readonly HttpClient _httpClient;
+        private readonly ILogger<WebhookPlayerNotifier> _logger;
+        private readonly string _webhookUrl;
+
+        public WebhookPlayerNotifier(
+            HttpClient httpClient,
+            ILogger<WebhookPlayerNotifier> logger,
+            IConfiguration configuration)
+        {
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            
+            // Get webhook URL from configuration
+            _webhookUrl = configuration["PlayerNotifier:WebhookUrl"] 
+                ?? throw new InvalidOperationException("PlayerNotifier:WebhookUrl not configured");
+        }
+
+        public async Task NotifyMatchAsync(SessionInfo sessionInfo)
+        {
+            _logger.LogInformation(
+                "Notifying {PlayerCount} players about match via webhook",
+                sessionInfo.UserIds.Count);
+
+            // Send notifications to all players in parallel
+            var notificationTasks = sessionInfo.UserIds.Select(userId =>
+                SendNotificationAsync(userId, sessionInfo)
+            );
+
+            try
+            {
+                await Task.WhenAll(notificationTasks);
+                _logger.LogInformation(
+                    "Successfully notified all players for session {SessionId}",
+                    sessionInfo.SessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, 
+                    "Failed to notify some players for session {SessionId}",
+                    sessionInfo.SessionId);
+                // Don't throw - notification failures shouldn't break matching
+            }
+        }
+
+        private async Task SendNotificationAsync(string userId, SessionInfo sessionInfo)
+        {
+            try
+            {
+                var payload = new
+                {
+                    type = "match_found",
+                    user_id = userId,
+                    session_id = sessionInfo.SessionId,
+                    player_count = sessionInfo.UserIds.Count,
+                    timestamp = DateTime.UtcNow
+                };
+
+                var response = await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
+                response.EnsureSuccessStatusCode();
+
+                _logger.LogDebug(
+                    "Notified user {UserId} about session {SessionId}",
+                    userId, sessionInfo.SessionId);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex,
+                    "Failed to notify user {UserId} via webhook",
+                    userId);
+                // Don't throw - continue notifying other players
+            }
+        }
+    }
+}
+```
+
+**Registration in Program.cs:**
+
+```csharp
+// Configure HttpClient with timeout and retry policy
+builder.Services.AddHttpClient<WebhookPlayerNotifier>()
+    .ConfigureHttpClient(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(5);
+    })
+    .AddTransientHttpErrorPolicy(policy => 
+        policy.WaitAndRetryAsync(3, retryAttempt => 
+            TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+// Register as IPlayerNotifier
+builder.Services.AddSingleton<IPlayerNotifier, WebhookPlayerNotifier>();
+```
+
+**Configuration (appsettings.json):**
+
+```json
+{
+  "PlayerNotifier": {
+    "WebhookUrl": "https://your-game-backend.com/api/matchmaking/notifications"
+  }
+}
+```
+
+**Webhook Endpoint Example (Your Game Backend):**
+
+```csharp
+[ApiController]
+[Route("api/matchmaking/notifications")]
+public class MatchmakingNotificationsController : ControllerBase
+{
+    [HttpPost]
+    public async Task<IActionResult> ReceiveNotification([FromBody] MatchNotification notification)
+    {
+        // Send push notification to player
+        await _pushNotificationService.SendAsync(
+            notification.UserId,
+            "Match Found!",
+            $"Your match is ready. Session: {notification.SessionId}");
+
+        return Ok();
+    }
+}
+
+public class MatchNotification
+{
+    public string Type { get; set; }
+    public string UserId { get; set; }
+    public string SessionId { get; set; }
+    public int PlayerCount { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+```
+
+### Redis-Based MatchPool Example
+
+This example shows how to implement a distributed match pool using Redis for multi-instance deployments.
+
+**Use Case:** Deploy multiple matchmaker instances that share the same match pool.
+
+**Prerequisites:**
+- Install `StackExchange.Redis` NuGet package
+- Redis server running and accessible
+
+**Implementation:**
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
+using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+
+namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
+{
+    /// <summary>
+    /// Redis-based match pool for multi-instance deployments
+    /// </summary>
+    public class RedisMatchPool : IMatchPool
+    {
+        private readonly IConnectionMultiplexer _redis;
+        private readonly ILogger<RedisMatchPool> _logger;
+        private const string PoolKey = "matchmaking:pool";
+        private const string UserIndexKey = "matchmaking:user_index";
+
+        public RedisMatchPool(
+            IConnectionMultiplexer redis,
+            ILogger<RedisMatchPool> logger)
+        {
+            _redis = redis ?? throw new ArgumentNullException(nameof(redis));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        public int Count
+        {
+            get
+            {
+                var db = _redis.GetDatabase();
+                return (int)db.SortedSetLength(PoolKey);
+            }
+        }
+
+        public void Add(MatchRequest request)
+        {
+            var db = _redis.GetDatabase();
+            var json = JsonSerializer.Serialize(request);
+            
+            // Use CreatedAt timestamp as score for FIFO ordering
+            var score = request.CreatedAt.Ticks;
+            
+            // Add to sorted set (pool) and user index
+            var transaction = db.CreateTransaction();
+            transaction.SortedSetAddAsync(PoolKey, json, score);
+            transaction.StringSetAsync($"{UserIndexKey}:{request.UserId}", request.RequestId);
+            transaction.Execute();
+
+            _logger.LogDebug("Added request {RequestId} to Redis pool", request.RequestId);
+        }
+
+        public MatchRequest? Remove(string requestId)
+        {
+            var db = _redis.GetDatabase();
+            
+            // Find and remove the request
+            var allRequests = db.SortedSetRangeByScore(PoolKey);
+            foreach (var entry in allRequests)
+            {
+                var request = JsonSerializer.Deserialize<MatchRequest>(entry.ToString());
+                if (request?.RequestId == requestId)
+                {
+                    var transaction = db.CreateTransaction();
+                    transaction.SortedSetRemoveAsync(PoolKey, entry);
+                    transaction.KeyDeleteAsync($"{UserIndexKey}:{request.UserId}");
+                    transaction.Execute();
+
+                    _logger.LogDebug("Removed request {RequestId} from Redis pool", requestId);
+                    return request;
+                }
+            }
+
+            return null;
+        }
+
+        public MatchRequest? Get(string requestId)
+        {
+            var db = _redis.GetDatabase();
+            var allRequests = db.SortedSetRangeByScore(PoolKey);
+            
+            foreach (var entry in allRequests)
+            {
+                var request = JsonSerializer.Deserialize<MatchRequest>(entry.ToString());
+                if (request?.RequestId == requestId)
+                {
+                    return request;
+                }
+            }
+
+            return null;
+        }
+
+        public MatchRequest? GetByUserId(string userId)
+        {
+            var db = _redis.GetDatabase();
+            var requestId = db.StringGet($"{UserIndexKey}:{userId}");
+            
+            if (requestId.IsNullOrEmpty)
+            {
+                return null;
+            }
+
+            return Get(requestId.ToString());
+        }
+
+        public List<MatchRequest> GetOldest(int count)
+        {
+            var db = _redis.GetDatabase();
+            
+            // Get oldest entries (lowest scores = earliest timestamps)
+            var entries = db.SortedSetRangeByScore(PoolKey, take: count);
+            
+            return entries
+                .Select(entry => JsonSerializer.Deserialize<MatchRequest>(entry.ToString()))
+                .Where(request => request != null)
+                .Cast<MatchRequest>()
+                .ToList();
+        }
+
+        public List<MatchRequest> RemoveExpired(TimeSpan timeout)
+        {
+            var db = _redis.GetDatabase();
+            var cutoffTime = DateTime.UtcNow - timeout;
+            var cutoffScore = cutoffTime.Ticks;
+
+            // Get expired entries
+            var expiredEntries = db.SortedSetRangeByScore(PoolKey, 0, cutoffScore);
+            var expiredRequests = expiredEntries
+                .Select(entry => JsonSerializer.Deserialize<MatchRequest>(entry.ToString()))
+                .Where(request => request != null)
+                .Cast<MatchRequest>()
+                .ToList();
+
+            if (expiredRequests.Count > 0)
+            {
+                // Remove expired entries
+                var transaction = db.CreateTransaction();
+                transaction.SortedSetRemoveRangeByScoreAsync(PoolKey, 0, cutoffScore);
+                
+                foreach (var request in expiredRequests)
+                {
+                    transaction.KeyDeleteAsync($"{UserIndexKey}:{request.UserId}");
+                }
+                
+                transaction.Execute();
+
+                _logger.LogInformation(
+                    "Removed {Count} expired requests from Redis pool",
+                    expiredRequests.Count);
+            }
+
+            return expiredRequests;
+        }
+
+        public List<MatchRequest> GetAll()
+        {
+            var db = _redis.GetDatabase();
+            var allEntries = db.SortedSetRangeByScore(PoolKey);
+            
+            return allEntries
+                .Select(entry => JsonSerializer.Deserialize<MatchRequest>(entry.ToString()))
+                .Where(request => request != null)
+                .Cast<MatchRequest>()
+                .ToList();
+        }
+    }
+}
+```
+
+**Registration in Program.cs:**
+
+```csharp
+// Configure Redis connection
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var redisConnectionString = configuration["Redis:ConnectionString"] 
+        ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(redisConnectionString);
+});
+
+// Register Redis-based match pool
+builder.Services.AddSingleton<IMatchPool, RedisMatchPool>();
+```
+
+**Configuration (appsettings.json):**
+
+```json
+{
+  "Redis": {
+    "ConnectionString": "your-redis-server:6379,password=your-password"
+  }
+}
+```
+
+### Database-Backed CompletedRequestStore Example
+
+This example shows how to implement a database-backed completed request store for durability and long-term retention.
+
+**Use Case:** Persist completed requests for analytics, compliance, or multi-instance deployments.
+
+**Prerequisites:**
+- Install `Microsoft.EntityFrameworkCore.SqlServer` NuGet package (or your preferred database provider)
+- Database server running and accessible
+
+**Implementation:**
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
+{
+    /// <summary>
+    /// Database context for completed requests
+    /// </summary>
+    public class MatchmakingDbContext : DbContext
+    {
+        public DbSet<MatchRequest> CompletedRequests { get; set; }
+
+        public MatchmakingDbContext(DbContextOptions<MatchmakingDbContext> options)
+            : base(options)
+        {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<MatchRequest>(entity =>
+            {
+                entity.HasKey(e => e.RequestId);
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.CompletedAt);
+                entity.Property(e => e.Metadata).HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (JsonSerializerOptions)null),
+                    v => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (JsonSerializerOptions)null));
+            });
+        }
+    }
+
+    /// <summary>
+    /// Database-backed completed request store for durability
+    /// </summary>
+    public class DatabaseCompletedRequestStore : ICompletedRequestStore
+    {
+        private readonly MatchmakingDbContext _dbContext;
+        private readonly ILogger<DatabaseCompletedRequestStore> _logger;
+
+        public DatabaseCompletedRequestStore(
+            MatchmakingDbContext dbContext,
+            ILogger<DatabaseCompletedRequestStore> logger)
+        {
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        public void Add(MatchRequest request)
+        {
+            try
+            {
+                _dbContext.CompletedRequests.Add(request);
+                _dbContext.SaveChanges();
+
+                _logger.LogDebug(
+                    "Added completed request {RequestId} to database",
+                    request.RequestId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to add completed request {RequestId} to database",
+                    request.RequestId);
+                throw;
+            }
+        }
+
+        public MatchRequest? Get(string requestId)
+        {
+            try
+            {
+                return _dbContext.CompletedRequests
+                    .FirstOrDefault(r => r.RequestId == requestId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to get completed request {RequestId} from database",
+                    requestId);
+                return null;
+            }
+        }
+
+        public List<MatchRequest> RemoveExpired(TimeSpan retentionPeriod)
+        {
+            try
+            {
+                var cutoffTime = DateTime.UtcNow - retentionPeriod;
+                
+                var expiredRequests = _dbContext.CompletedRequests
+                    .Where(r => r.CompletedAt < cutoffTime)
+                    .ToList();
+
+                if (expiredRequests.Count > 0)
+                {
+                    _dbContext.CompletedRequests.RemoveRange(expiredRequests);
+                    _dbContext.SaveChanges();
+
+                    _logger.LogInformation(
+                        "Removed {Count} expired completed requests from database",
+                        expiredRequests.Count);
+                }
+
+                return expiredRequests;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to remove expired requests from database");
+                return new List<MatchRequest>();
+            }
+        }
+    }
+}
+```
+
+**Registration in Program.cs:**
+
+```csharp
+// Configure database context
+builder.Services.AddDbContext<MatchmakingDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("MatchmakingDb");
+    options.UseSqlServer(connectionString);
+});
+
+// Register database-backed completed request store
+builder.Services.AddScoped<ICompletedRequestStore, DatabaseCompletedRequestStore>();
+
+// Run migrations on startup
+var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<MatchmakingDbContext>();
+    dbContext.Database.Migrate();
+}
+```
+
+**Configuration (appsettings.json):**
+
+```json
+{
+  "ConnectionStrings": {
+    "MatchmakingDb": "Server=your-server;Database=Matchmaking;User Id=your-user;Password=your-password;"
+  }
+}
+```
+
+**Migration Commands:**
+
+```bash
+# Create initial migration
+dotnet ef migrations add InitialCreate --context MatchmakingDbContext
+
+# Apply migrations
+dotnet ef database update --context MatchmakingDbContext
+```
+
+### Skill-Based MatchMaker Modification Example
+
+This example shows how to modify the MatchMaker to implement skill-based matching using MMR (Matchmaking Rating).
+
+**Use Case:** Match players of similar skill levels together for balanced gameplay.
+
+**Implementation:**
+
+See the [MatchMaker Customization](#matchmaker-customization) section above for the complete skill-based matching example. The key points are:
+
+1. Add `mmr` metadata to match requests
+2. Group requests by skill bracket (e.g., 0-999, 1000-1999, etc.)
+3. Match within skill brackets using FIFO
+4. Consider fallback logic for players waiting too long
+
+**Additional Considerations:**
+
+- **Skill bracket size:** Smaller brackets = better matches but longer wait times
+- **Fallback logic:** After waiting X seconds, expand skill range
+- **Team balancing:** For team games, balance average MMR between teams
+- **New player protection:** Separate bracket for new players (< 10 games)
+
+---
+
+## Session Provider Decision Tree
+
+Choosing between create mode and find mode depends on your game architecture and server infrastructure. Use this decision tree to determine the right approach.
+
+### Decision Tree
+
+```
+How are game servers managed in your game?
+
+├─ Players connect PEER-TO-PEER (no dedicated servers)
+│  └─ Use CREATE MODE
+│     └─ Matchmaker creates session, players connect directly to each other
+│
+├─ Dedicated servers are ALLOCATED ON-DEMAND
+│  └─ Use CREATE MODE with dedicated server provider integration
+│     ├─ Matchmaker creates session
+│     ├─ Allocate server from provider (GameLift, custom allocator, etc.)
+│     └─ Add server connection info to session
+│
+├─ Dedicated servers are PRE-ALLOCATED (always running)
+│  └─ Use FIND MODE
+│     ├─ Servers create EOS sessions and mark as available
+│     ├─ Matchmaker finds available sessions
+│     └─ Matchmaker notifies server owner when session is claimed
+│
+└─ Players HOST their own servers
+   └─ Use FIND MODE
+      ├─ Player-hosted servers create EOS sessions
+      ├─ Matchmaker finds available sessions
+      └─ Matchmaker notifies server owner when session is claimed
+```
+
+### Mode Comparison
+
+| Aspect | Create Mode | Find Mode |
+|--------|-------------|-----------|
+| **Session Creation** | Matchmaker creates new sessions | Game servers create sessions |
+| **Server Allocation** | On-demand or P2P | Pre-allocated or player-hosted |
+| **Session Lifecycle** | Matchmaker controls | Server controls |
+| **Notification** | Players only | Players + server owner |
+| **Complexity** | Simpler | More complex |
+| **Use Cases** | P2P, on-demand servers | Pre-allocated servers, player-hosted |
+
+### Create Mode - Detailed Use Cases
+
+**1. Peer-to-Peer Gameplay**
+
+Best for games where players connect directly to each other without dedicated servers.
+
+**Characteristics:**
+- No server infrastructure needed
+- One player acts as host
+- Lower infrastructure costs
+- Suitable for small player counts (2-8 players)
+
+**Examples:**
+- Fighting games (1v1)
+- Co-op games (2-4 players)
+- Party games
+- Mobile games with small matches
+
+**Flow:**
+1. Players submit match requests
+2. Matchmaker creates match and EOS session
+3. Players receive session ID
+4. Players join session and connect P2P
+5. One player acts as host
+
+**2. On-Demand Dedicated Servers**
+
+Best for games that allocate dedicated servers when matches are created.
+
+**Characteristics:**
+- Servers allocated only when needed
+- Cost-efficient (pay per match)
+- Scales automatically with player demand
+- Requires integration with server provider
+
+**Examples:**
+- Battle royale games
+- Competitive multiplayer games
+- Large-scale matches (10+ players)
+- Games requiring authoritative servers
+
+**Flow:**
+1. Players submit match requests
+2. Matchmaker creates match and EOS session
+3. Matchmaker allocates server from provider
+4. Server connection info added to session
+5. Players receive session ID and server address
+6. Players connect to dedicated server
+
+**Implementation:** See [Extending Create Mode with Dedicated Server Provider](#extending-create-mode-with-dedicated-server-provider) section
+
+### Find Mode - Detailed Use Cases
+
+**1. Pre-Allocated Dedicated Servers**
+
+Best for games with dedicated servers that are always running and waiting for players.
+
+**Characteristics:**
+- Servers always running (fixed cost)
+- Instant match start (no allocation delay)
+- Servers manage their own lifecycle
+- Requires server notification mechanism
+
+**Examples:**
+- MMO games with instanced content
+- Games with persistent server infrastructure
+- Enterprise deployments with fixed server pools
+- Games with complex server initialization
+
+**Flow:**
+1. Dedicated servers start and create EOS sessions (available state)
+2. Players submit match requests
+3. Matchmaker creates match and finds available session
+4. Matchmaker claims session (adds to cache)
+5. Matchmaker notifies server owner
+6. Server updates session to "started" state
+7. Players receive session ID and connect to server
+
+**Server Notification:** Implement `ISessionOwnerNotifier` to notify servers (HTTP, gRPC, message queue)
+
+**2. Player-Hosted Servers**
+
+Best for games where players can host their own servers and wait for matchmaker to fill them.
+
+**Characteristics:**
+- Players create and manage servers
+- Community-driven server ecosystem
+- No server infrastructure costs
+- Requires server notification mechanism
+
+**Examples:**
+- Sandbox games with custom servers
+- Games with modding support
+- Community-driven multiplayer games
+- Games with server browser + matchmaking
+
+**Flow:**
+1. Player starts server and creates EOS session (available state)
+2. Other players submit match requests
+3. Matchmaker creates match and finds player's session
+4. Matchmaker claims session
+5. Matchmaker notifies server owner (player)
+6. Server owner updates session to "started"
+7. Matched players receive session ID and connect
+
+**Server Notification:** Implement `ISessionOwnerNotifier` to notify player-hosted servers
+
+### Hybrid Approach
+
+Some games use both modes for different scenarios:
+
+**Example: Casual vs Competitive**
+- **Create Mode:** Casual quick play (P2P or on-demand servers)
+- **Find Mode:** Competitive ranked play (pre-allocated dedicated servers)
+
+**Example: Public vs Custom**
+- **Create Mode:** Public matchmaking (on-demand servers)
+- **Find Mode:** Custom/private servers (player-hosted)
+
+**Implementation:** Run two separate matchmaker instances with different configurations.
+
+### Configuration Examples
+
+**Create Mode Configuration:**
+
+```json
+{
+  "SessionProvider": {
+    "Mode": "create"
+  },
+  "MatchMaker": {
+    "MatchSize": 4,
+    "TickInterval": "00:00:01",
+    "RequestTimeout": "00:01:00"
+  }
+}
+```
+
+**Find Mode Configuration:**
+
+```json
+{
+  "SessionProvider": {
+    "Mode": "find"
+  },
+  "SessionFinder": {
+    "BucketId": "default",
+    "MaxSearchResults": 10,
+    "ClaimedSessionExpirationSeconds": 300
+  },
+  "MatchMaker": {
+    "MatchSize": 4,
+    "TickInterval": "00:00:01",
+    "RequestTimeout": "00:01:00"
+  }
+}
+```
+
+### Decision Criteria Summary
+
+**Choose Create Mode when:**
+- ✅ Players connect peer-to-peer
+- ✅ Servers are allocated on-demand
+- ✅ You want matchmaker to control session lifecycle
+- ✅ Simpler architecture is preferred
+- ✅ No need for pre-allocated servers
+
+**Choose Find Mode when:**
+- ✅ Servers are pre-allocated and always running
+- ✅ Players host their own servers
+- ✅ Servers need to control their own lifecycle
+- ✅ Servers need notification when sessions are claimed
+- ✅ Complex server initialization required
+
+**Key Questions:**
+1. Who creates the EOS session? (Matchmaker → Create, Server → Find)
+2. When are servers allocated? (On-demand → Create, Pre-allocated → Find)
+3. Who controls session lifecycle? (Matchmaker → Create, Server → Find)
+4. Do servers need notification? (No → Create, Yes → Find)
+
+---
+
 ## Next Steps
 
 - **Set up the service**: See [Setup Guide](setup.md)
 - **Test the service**: See [Testing Guide](testing_guide.md)
 - **Monitor and troubleshoot**: See [Operations Guide](operations.md)
+
