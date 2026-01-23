@@ -10,13 +10,21 @@ This guide provides complete instructions for setting up, configuring, and deplo
 
 ### Development Tools
 
-- **Bash** - Command-line shell (Git Bash on Windows, native on Linux/Mac)
-- **Make** - Build automation tool
-- **Docker** - Container platform (Docker Desktop recommended)
-- **Docker Compose** - Multi-container orchestration
-- **.NET 8 SDK** - For local development and testing
-- **Postman** - API testing (optional, but recommended)
-- **extend-helper-cli** - AccelByte deployment tool
+Windows 11 WSL2 or Linux Ubuntu 22.04 or macOS 14+ with the following tools installed:
+
+a. Bash
+
+b. Make
+
+c. Docker (Docker Desktop 4.30+/Docker Engine v23.0+)
+
+d. .NET 8.0+ SDK
+
+e. Postman
+
+f. extend-helper-cli
+
+> ❗ In macOS, you may use Homebrew to easily install some of the tools above.
 
 ### AccelByte Account
 
@@ -331,9 +339,19 @@ DATABASE_CONNECTION_STRING=Server=db;Database=matchmaking;...
 
 ## Local Development Without Docker
 
-### 1. Install .NET 8 SDK
+### 1. Install .NET 8.0+ SDK
 
-Download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/8.0)
+**For Windows and macOS:**
+
+Download from [Browse all .NET versions](https://dotnet.microsoft.com/download/dotnet)
+
+**For Ubuntu:**
+
+```bash
+sudo apt-get update && sudo apt-get install -y dotnet-sdk-8.0
+```
+
+> Note: .NET 8.0 or later is required.
 
 ### 2. Restore Dependencies
 
@@ -391,10 +409,12 @@ dotnet test
 
 ### Prerequisites
 
-1. **Install extend-helper-cli**:
-   ```bash
-   npm install -g @accelbyte/extend-helper-cli
-   ```
+1. **Download extend-helper-cli**:
+   - Go to the [extend-helper-cli releases page](https://github.com/AccelByte/extend-helper-cli/releases)
+   - Download the latest executable for your operating system
+   - Add the executable to your PATH or note its location
+
+   > ⚠️ We recommend to always use the latest version available.
 
 2. **Create Extend App** in AGS Admin Portal:
    - Navigate to **Extend** → **Service Extension**
