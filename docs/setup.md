@@ -159,6 +159,43 @@ EOS_CLIENT_SECRET=your-eos-client-secret
 
 These are required for session creation. The service will fail to start if EOS credentials are missing or invalid.
 
+### Session Provider Mode
+
+Configure which session provider implementation to use:
+
+**Create Mode (Default):**
+```json
+{
+  "SessionProvider": {
+    "Mode": "create"
+  }
+}
+```
+
+**Find Mode:**
+```json
+{
+  "SessionProvider": {
+    "Mode": "find"
+  },
+  "SessionFinder": {
+    "BucketId": "default",
+    "MaxSearchResults": 10,
+    "ClaimedSessionExpirationSeconds": 300
+  }
+}
+```
+
+**Environment Variable Format:**
+```bash
+SESSIONPROVIDER__MODE=find
+SESSIONFINDER__BUCKETID=default
+SESSIONFINDER__MAXSEARCHRESULTS=10
+SESSIONFINDER__CLAIMEDSESSIONEXPIRATIONSECONDS=300
+```
+
+> See [Architecture Guide](architecture.md#session-provider-modes) for detailed information on both modes and when to use each.
+
 ### Authorization Settings
 
 **Enable Authorization** (Production):

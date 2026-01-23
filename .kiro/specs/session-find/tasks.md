@@ -198,8 +198,8 @@ This implementation adds an alternative session provider that finds and claims e
     - Verify session can be claimed again (if still available and not started)
     - _Requirements: 2.4, 2.5_
 
-- [ ] 10. Update documentation
-  - [ ] 10.1 Add README section for session provider modes
+- [x] 10. Update documentation
+  - [x] 10.1 Add README section for session provider modes
     - Explain "create" mode with use cases
     - Explain "find" mode with use cases
     - Provide configuration examples for both modes
@@ -207,7 +207,7 @@ This implementation adds an alternative session provider that finds and claims e
     - Include dedicated server provider extension example
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 11. Checkpoint - Ensure all tests pass
+- [x] 11. Checkpoint - Ensure all tests pass
   - Run all unit tests and verify they pass
   - Run all integration tests and verify they pass
   - Verify the project builds successfully

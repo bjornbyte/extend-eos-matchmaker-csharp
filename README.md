@@ -131,6 +131,24 @@ The matchmaking service can be configured via `appsettings.json` or environment 
 }
 ```
 
+## Session Provider Modes
+
+This matchmaking service supports two session provider modes to accommodate different deployment patterns:
+
+- **Create Mode (Default)**: Matchmaker creates new EOS sessions for each match. Suitable for P2P gameplay or integration with dedicated server providers.
+- **Find Mode**: Matchmaker finds existing available EOS sessions created by game servers. Suitable for player-hosted or pre-allocated dedicated servers.
+
+**Configuration:**
+```json
+{
+  "SessionProvider": {
+    "Mode": "create"  // or "find"
+  }
+}
+```
+
+> See [Architecture Guide](docs/architecture.md#session-provider-modes) for detailed information on both modes, use cases, and extensibility examples.
+
 ## Quick Start
 
 ### Prerequisites

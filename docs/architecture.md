@@ -76,6 +76,338 @@ The Simple EOS Matchmaking Service is an Extend Service Extension that provides 
 
 ---
 
+## Session Provider Modes
+
+The matchmaking service supports two session provider modes to accommodate different deployment patterns. Both implementations use the same `ISessionCreator` interface, allowing operators to switch between patterns via configuration without code changes.
+
+### Overview
+
+| Mode | Purpose | Session Creation | Use Cases |
+|------|---------|------------------|-----------|
+| **Create** | Matchmaker creates sessions | New session per match | P2P gameplay, dedicated server provider integration |
+| **Find** | Matchmaker finds sessions | Existing available sessions | Player-hosted servers, pre-allocated dedicated servers |
+
+### Create Mode (Default)
+
+In "create" mode, the matchmaker creates new EOS sessions for each match.
+
+**Architecture:**
+```
+Players → MatchMaker → Create Match → EOSSessionCreator → New EOS Session
+```
+
+**Use Cases:**
+- **Peer-to-peer gameplay**: Matched players connect directly to each other
+- **Dedicated server provider integration**: Matchmaker creates session, then allocates server from provider
+
+**Flow:**
+1. Players submit match requests
+2. MatchMaker creates a match from pending requests
+3. EOSSessionCreator creates a new EOS session
+4. Session details returned to matched players
+5. Players join the session and connect (P2P or via allocated server)
+
+**Configuration:**
+```json
+{
+  "SessionProvider": {
+    "Mode": "create"
+  }
+}
+```
+
+**Implementation:** `EOSSessionCreator` class creates sessions using EOS SDK's `UpdateSession` API.
+
+### Find Mode
+
+In "find" mode, the matchmaker finds existing available EOS sessions created by game servers and notifies the session owner.
+
+**Architecture:**
+```
+Game Servers → Create EOS Sessions (available)
+Players → MatchMaker → Create Match → EOSSessionFinder → Find & Claim Session → Notify Owner
+```
+
+**Use Cases:**
+- **Player-hosted servers**: Players create sessions and wait for matchmaker to assign players
+- **Pre-allocated dedicated servers**: Dedicated servers create their own sessions and register with EOS
+
+**Flow:**
+1. Game servers create EOS sessions and mark them as available (0 players, not started)
+2. Players submit match requests
+3. MatchMaker creates a match from pending requests
+4. EOSSessionFinder searches for available sessions
+5. Finder claims a session (adds to local cache)
+6. Finder notifies session owner with match details
+7. Session owner updates session to "started" state in EOS
+8. Players join the claimed session
+
+**Configuration:**
+```json
+{
+  "SessionProvider": {
+    "Mode": "find"
+  },
+  "SessionFinder": {
+    "BucketId": "default",
+    "MaxSearchResults": 10,
+    "ClaimedSessionExpirationSeconds": 300
+  }
+}
+```
+
+**Configuration Options:**
+- `BucketId`: Session bucket identifier to filter search results (default: "default")
+- `MaxSearchResults`: Maximum number of search results to retrieve (default: 10)
+- `ClaimedSessionExpirationSeconds`: Expiration time in seconds for claimed session cache entries (default: 300)
+
+**Implementation:** `EOSSessionFinder` class searches for sessions using EOS SDK's `SessionSearch` API.
+
+### Session Claiming and Concurrency
+
+In "find" mode, the session finder uses a local claimed sessions cache to prevent concurrent matches from claiming the same session:
+
+**Claimed Sessions Cache:**
+- Thread-safe in-memory cache (`ConcurrentDictionary`)
+- Tracks recently claimed sessions with timestamps
+- Automatic expiration after configured time (default: 5 minutes)
+- Prevents race conditions when multiple matches are created simultaneously
+
+**Claiming Process:**
+1. Search for available sessions (0 players, not started, not in cache)
+2. Select first unclaimed session from results
+3. Add session to claimed cache with current timestamp
+4. Notify session owner
+5. Return session info to matchmaker
+
+**Why Local Cache?**
+- EOS session state updates are not instantaneous
+- Multiple concurrent matches might see the same "available" session
+- Local cache provides immediate consistency within the matchmaker
+- Session owner is responsible for updating EOS state to "started"
+
+### Session Owner Notification
+
+In "find" mode, the session owner must be notified when their session is claimed so they can prepare for players.
+
+**Default Implementation:**
+
+The service includes a stub implementation (`StubSessionOwnerNotifier`) that logs notifications:
+
+```csharp
+public class StubSessionOwnerNotifier : ISessionOwnerNotifier
+{
+    public Task NotifySessionClaimedAsync(string sessionId, Match match, string connectionInfo)
+    {
+        _logger.LogInformation(
+            "STUB: Session claimed - SessionId={SessionId}, MatchId={MatchId}, " +
+            "ConnectionInfo={ConnectionInfo}, UserIds={UserIds}",
+            sessionId, match.MatchId, connectionInfo, string.Join(",", match.UserIds));
+        
+        // TODO: Implement actual notification mechanism
+        return Task.CompletedTask;
+    }
+}
+```
+
+**Notification Payload:**
+
+The notification includes complete match information:
+- `sessionId`: The EOS session ID that was claimed
+- `match.MatchId`: Unique identifier for the match
+- `match.UserIds`: List of all matched player IDs
+- `match.RequestIds`: List of all match request IDs
+- `connectionInfo`: Connection information from the EOS session
+
+**Custom Implementation Example:**
+
+Developers should implement their own notification mechanism based on their infrastructure:
+
+```csharp
+public class HttpSessionOwnerNotifier : ISessionOwnerNotifier
+{
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<HttpSessionOwnerNotifier> _logger;
+
+    public async Task NotifySessionClaimedAsync(string sessionId, Match match, string connectionInfo)
+    {
+        var payload = new
+        {
+            sessionId,
+            match = new
+            {
+                matchId = match.MatchId,
+                userIds = match.UserIds,
+                requestIds = match.RequestIds,
+                createdAt = match.CreatedAt
+            }
+        };
+
+        try
+        {
+            // connectionInfo contains the game server's HTTP endpoint
+            await _httpClient.PostAsJsonAsync($"{connectionInfo}/session-claimed", payload);
+            _logger.LogInformation("Notified session owner: SessionId={SessionId}", sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to notify session owner: SessionId={SessionId}", sessionId);
+        }
+    }
+}
+```
+
+**Registration:**
+```csharp
+// In Program.cs, replace the stub notifier
+builder.Services.AddHttpClient<HttpSessionOwnerNotifier>();
+builder.Services.AddSingleton<ISessionOwnerNotifier, HttpSessionOwnerNotifier>();
+```
+
+**Notification Mechanisms:**
+
+Common notification approaches:
+- **HTTP POST**: Game server exposes webhook endpoint
+- **Message Queue**: Publish to RabbitMQ, AWS SQS, Azure Service Bus
+- **gRPC**: Call game server's gRPC service
+- **WebSocket**: Send message over persistent connection
+- **Database**: Write to shared database table that servers poll
+
+### Extending Create Mode with Dedicated Server Provider
+
+The "create" mode can be extended to support dedicated server allocation by adding a dedicated server provider.
+
+**Architecture:**
+```
+Players → MatchMaker → Create Match → Allocate Server → Create Session → Add Server Info
+```
+
+**Example Interface:**
+```csharp
+public interface IDedicatedServerProvider
+{
+    Task<DedicatedServer> AllocateServerAsync();
+    Task ReleaseServerAsync(string serverId);
+}
+
+public class DedicatedServer
+{
+    public string ServerId { get; set; }
+    public string IpAddress { get; set; }
+    public int Port { get; set; }
+    public string ConnectionString => $"{IpAddress}:{Port}";
+}
+```
+
+**Integration in MatchMaker:**
+```csharp
+// In MatchMaker.TryMatchAsync()
+var match = new Match(requestsForMatch);
+
+// Allocate a dedicated server
+var server = await _serverProvider.AllocateServerAsync();
+
+// Create session with server info
+var sessionInfo = await _sessionCreator.GetSessionAsync(match);
+
+// Add server connection info to session metadata
+await _eosService.UpdateSessionAttribute(
+    sessionInfo.SessionId, 
+    "server_address", 
+    server.ConnectionString);
+
+_logger.LogInformation(
+    "Match created with dedicated server: MatchId={MatchId}, ServerId={ServerId}",
+    match.MatchId, server.ServerId);
+```
+
+**Example: AWS GameLift Integration**
+```csharp
+public class GameLiftServerProvider : IDedicatedServerProvider
+{
+    private readonly IAmazonGameLift _gameLiftClient;
+    private readonly string _fleetId;
+
+    public async Task<DedicatedServer> AllocateServerAsync()
+    {
+        var request = new CreateGameSessionRequest
+        {
+            FleetId = _fleetId,
+            MaximumPlayerSessionCount = 4
+        };
+
+        var response = await _gameLiftClient.CreateGameSessionAsync(request);
+        
+        return new DedicatedServer
+        {
+            ServerId = response.GameSession.GameSessionId,
+            IpAddress = response.GameSession.IpAddress,
+            Port = response.GameSession.Port
+        };
+    }
+
+    public async Task ReleaseServerAsync(string serverId)
+    {
+        // GameLift automatically terminates sessions when empty
+        await Task.CompletedTask;
+    }
+}
+```
+
+**Example: Agones (Kubernetes) Integration**
+```csharp
+public class AgonesServerProvider : IDedicatedServerProvider
+{
+    private readonly HttpClient _httpClient;
+    private readonly string _allocatorEndpoint;
+
+    public async Task<DedicatedServer> AllocateServerAsync()
+    {
+        var response = await _httpClient.PostAsync($"{_allocatorEndpoint}/allocate", null);
+        var allocation = await response.Content.ReadFromJsonAsync<GameServerAllocation>();
+        
+        return new DedicatedServer
+        {
+            ServerId = allocation.Name,
+            IpAddress = allocation.Status.Address,
+            Port = allocation.Status.Ports[0].Port
+        };
+    }
+
+    public async Task ReleaseServerAsync(string serverId)
+    {
+        // Mark server as ready for reallocation
+        await _httpClient.PostAsync($"{_allocatorEndpoint}/ready/{serverId}", null);
+    }
+}
+```
+
+This extension is not included in the sample but demonstrates how the architecture can be adapted to your deployment needs.
+
+### Choosing the Right Mode
+
+**Use Create Mode when:**
+- Players connect peer-to-peer (no dedicated servers)
+- You want the matchmaker to orchestrate server allocation
+- You're integrating with a dedicated server provider (GameLift, Agones, etc.)
+- Sessions are ephemeral and created on-demand
+
+**Use Find Mode when:**
+- Game servers create their own sessions
+- You have pre-allocated or player-hosted servers
+- Servers register themselves with EOS
+- You want servers to control session lifecycle
+
+**Hybrid Approach:**
+
+Some games may use both modes:
+- **Create mode** for casual/quick play (P2P or on-demand servers)
+- **Find mode** for custom/private servers (player-hosted or dedicated)
+
+This requires running two separate matchmaker instances with different configurations.
+
+---
+
 ## Core Components
 
 ### MatchmakingService
