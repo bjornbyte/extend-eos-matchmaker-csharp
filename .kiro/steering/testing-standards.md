@@ -138,15 +138,16 @@ Property tests marked with `*` in task lists are optional and can be skipped for
 
 **CRITICAL RULE**: A task can NEVER be considered complete if:
 1. The entire project does not build successfully (no compilation errors)
-2. All tests do not pass (no failing tests)
+2. All tests do not pass (no failing tests, including E2E tests)
 3. The TDD Red-Green-Refactor cycle was not followed
 
 Before marking any task as complete, you MUST:
 1. Confirm tests were written FIRST and failed (RED phase)
 2. Confirm implementation made tests pass (GREEN phase)
 3. Run a full project build and verify it succeeds
-4. Run all tests and verify they all pass
-5. Fix any compilation errors or test failures before proceeding
+4. **Start the service if running E2E tests** (see E2E Testing section below)
+5. Run all tests (unit + E2E) and verify they all pass
+6. Fix any compilation errors or test failures before proceeding
 
 **When updating task status:**
 - Setting to "in_progress": State "Starting TDD cycle - writing tests first"
@@ -156,9 +157,36 @@ If other tasks have introduced compilation errors or test failures, you MUST fix
 
 ## E2E Testing
 
+**CRITICAL: E2E Tests Require Running Service**
+
+When running the full test suite with `dotnet test`, this includes BOTH unit tests AND E2E tests. E2E tests require the service to be running.
+
+**Before Running Full Test Suite:**
+1. **Start the service**: `wsl docker compose up --build` (run in background as a process)
+2. **Wait for service to be ready** (check logs show "Now listening on: http://0.0.0.0:8000")
+3. **Run tests**: `dotnet test src/extend-service-extension-server.sln`
+4. **Stop the service**: Stop the background process or run `wsl docker compose down`
+
 **Running E2E Tests:**
-- E2E tests run against a live service instance
+- E2E tests run against a live service instance at `http://127.0.0.1:8000/matchmaking`
 - If you make changes to the service implementation, you MUST restart the service before running E2E tests
-- To restart the service: `docker compose down && docker compose up --build`
+- To restart the service: `wsl docker compose down && wsl docker compose up --build`
 - E2E tests are NOT backward compatible - they test the current implementation
 - Always rebuild the Docker image when testing new features
+- Use `wsl docker compose` commands (not plain `docker compose`) on Windows systems
+
+**Running Only Unit Tests (No Service Required):**
+- To skip E2E tests: `dotnet test src/AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests/AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.csproj`
+- This runs only the unit tests without requiring the service to be running
+
+**YOU MUST NOT:**
+- ❌ Run `dotnet test` on the solution without starting the service first
+- ❌ Assume E2E test failures are acceptable
+- ❌ Mark a task complete with failing E2E tests
+- ❌ Use plain `docker compose` commands on Windows (use `wsl docker compose` instead)
+
+**YOU MUST:**
+- ✅ Start the service using `wsl docker compose up --build` before running the full test suite
+- ✅ Ensure ALL tests pass (unit + E2E) before marking tasks complete
+- ✅ Rebuild the service after code changes before running E2E tests
+- ✅ Use controlPwshProcess tool to run docker compose in the background
