@@ -34,7 +34,6 @@ This repository provides a simple matchmaking service implemented as an `Extend 
 - **Request Timeout** - Automatic expiration after configurable timeout period
 - **Built-in Observability** - Metrics, distributed tracing, and structured logging
 - **Extensible Design** - Clear extension points for custom notification and session logic
-- **Production Ready** - Thread-safe, error handling, authorization, and comprehensive tests
 
 ## Quick Start
 
@@ -185,10 +184,11 @@ The service provides clear extension points for customization:
 - **ISessionOwnerNotifier** - Notify game servers when sessions are claimed (find mode only)
 
 ### Infrastructure-Level Extension Points
+Replace in memory implementation with durable storage (e.g. Redis, DB) for multi-instance deployments
 
-- **IMatchPool** - Distributed storage for multi-instance deployments (Redis, database)
-- **ICompletedRequestStore** - Persistent storage for durability (Redis, database)
-- **IClaimedSessionsCache** - Distributed cache for multi-instance find mode (Redis)
+- **IMatchPool**
+- **ICompletedRequestStore** 
+- **IClaimedSessionsCache**
 
 ### Core Customization
 
