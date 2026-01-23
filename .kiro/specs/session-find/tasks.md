@@ -108,13 +108,13 @@ This implementation adds an alternative session provider that finds and claims e
     - Run tests and verify they pass
     - _Requirements: 1.1, 1.4, 6.1, 6.3, 6.4, 6.5_
   
-  - [ ] 6.5 Write tests for session claiming logic
+  - [x] 6.5 Write tests for session claiming logic
     - Test session is added to claimed cache
     - Test session owner notification is sent
     - Test SessionInfo is returned with correct data
     - _Requirements: 1.2, 2.1, 3.1, 3.2, 3.3, 3.4_
   
-  - [ ] 6.6 Implement session claiming logic
+  - [x] 6.6 Implement session claiming logic
     - Add session to claimed cache
     - Extract connection info from session details
     - Send notification to session owner with session ID, Match object, and connection info
@@ -122,13 +122,13 @@ This implementation adds an alternative session provider that finds and claims e
     - Run tests and verify they pass
     - _Requirements: 1.2, 2.1, 3.1, 3.2, 3.3, 3.4, 3.5_
   
-  - [ ] 6.7 Write tests for no available sessions
+  - [x] 6.7 Write tests for no available sessions
     - Test exception thrown when no sessions found
     - Test exception thrown when all sessions are claimed
     - Test exception includes session count
     - _Requirements: 1.3, 5.1, 5.2_
   
-  - [ ] 6.8 Implement no available sessions handling
+  - [x] 6.8 Implement no available sessions handling
     - Throw NoAvailableSessionsException when appropriate
     - Include session count in exception
     - Log warning with context

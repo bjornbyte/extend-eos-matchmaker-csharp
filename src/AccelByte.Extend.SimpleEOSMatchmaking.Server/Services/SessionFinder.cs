@@ -45,11 +45,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         public async Task<SessionInfo> GetSessionAsync(Match match)
         {
             // Search for an available session
-            var sessionDetails = await SearchForAvailableSessionAsync();
+            var (sessionDetails, sessionsSearched) = await SearchForAvailableSessionAsync();
             
             if (sessionDetails == null)
             {
-                throw new NoAvailableSessionsException(0);
+                _logger.LogWarning("No available sessions found: SessionsSearched={SessionsSearched}, MatchId={MatchId}",
+                    sessionsSearched, match.MatchId);
+                throw new NoAvailableSessionsException(sessionsSearched);
             }
             
             // Claim the session
@@ -122,7 +124,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             return result;
         }
 
-        private async Task<SessionDetails?> SearchForAvailableSessionAsync()
+        private async Task<(SessionDetails? sessionDetails, int sessionsSearched)> SearchForAvailableSessionAsync()
         {
             if (_eosService == null)
             {
@@ -211,7 +213,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 if (findResult != Result.Success)
                 {
                     _logger.LogWarning("Session search returned no results: {Result}", findResult);
-                    return null;
+                    return (null, 0);
                 }
 
                 // Iterate through results and find first unclaimed session
@@ -265,12 +267,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         // Mark session as claimed immediately to prevent concurrent claims
                         _claimedSessionsCache.AddClaimedSession(sessionId);
                         _logger.LogInformation("Found and claimed available session: {SessionId}", sessionId);
-                        return details;
+                        return (details, (int)resultCount);
                     }
 
                     // All sessions were claimed
                     _logger.LogWarning("All {Count} found sessions are already claimed", resultCount);
-                    return null;
+                    return (null, (int)resultCount);
                 }
             }
             finally
