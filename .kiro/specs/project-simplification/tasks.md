@@ -203,19 +203,19 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
     - Update glossary if needed
     - _Requirements: 1.5_
 
-- [ ] 13. Final validation
-  - [ ] 13.1 Run all tests
+- [-] 13. Final validation
+  - [x] 13.1 Run all tests
     - Execute `dotnet test src/extend-service-extension-server.sln`
     - Verify all tests pass
     - _Requirements: 5.1_
   
-  - [ ] 13.2 Build and run service locally
+  - [x] 13.2 Build and run service locally
     - Execute `docker compose up --build`
     - Verify service starts without errors
     - Test basic matchmaking flow
     - _Requirements: 3.1_
   
-  - [ ] 13.3 Review extension point clarity
+  - [x] 13.3 Review extension point clarity
     - Verify all extension points are clearly marked
     - Verify stub implementations have TODO comments
     - Verify Program.cs has inline comments
