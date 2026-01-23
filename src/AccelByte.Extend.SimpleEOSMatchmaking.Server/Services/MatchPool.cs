@@ -6,7 +6,40 @@ using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// Interface for managing a pool of pending match requests
+    /// INFRASTRUCTURE-LEVEL EXTENSION POINT: Interface for managing a pool of pending match requests.
+    /// 
+    /// The default implementation (MatchPool) uses in-memory storage with thread-safe operations.
+    /// This is suitable for single-instance deployments but has limitations:
+    /// 
+    /// LIMITATIONS OF DEFAULT IN-MEMORY IMPLEMENTATION:
+    /// - Single-instance only: Cannot share state across multiple service instances
+    /// - No durability: All pending requests lost on service restart
+    /// - Memory-bound: Limited by available RAM
+    /// 
+    /// WHEN TO IMPLEMENT CUSTOM STORAGE:
+    /// 
+    /// Multi-Instance Deployments:
+    /// - Use Redis or distributed cache for shared state across instances
+    /// - Ensures all instances see the same pending requests
+    /// - Prevents duplicate matching
+    /// 
+    /// High Availability Requirements:
+    /// - Use database (SQL Server, PostgreSQL, etc.) for durability
+    /// - Requests survive service restarts
+    /// - Can recover from failures
+    /// 
+    /// Large-Scale Matchmaking:
+    /// - Use external queue system (RabbitMQ, AWS SQS, etc.)
+    /// - Better scalability for high request volumes
+    /// - Can distribute load across multiple matchers
+    /// 
+    /// IMPLEMENTATION CONSIDERATIONS:
+    /// - Must maintain FIFO ordering for fair matching
+    /// - Must support fast lookups by request ID and user ID
+    /// - Must be thread-safe for concurrent access
+    /// - Must support atomic operations (add, remove, get oldest)
+    /// 
+    /// See docs/architecture.md#infrastructure-extension-points for Redis and database examples.
     /// </summary>
     public interface IMatchPool
     {

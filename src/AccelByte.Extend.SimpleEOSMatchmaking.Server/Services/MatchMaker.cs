@@ -40,35 +40,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     }
 
     /// <summary>
-    /// Interface for the match maker service
-    /// </summary>
-    public interface IMatchMaker
-    {
-        /// <summary>
-        /// Start the background matching process
-        /// </summary>
-        Task StartAsync(CancellationToken cancellationToken);
-
-        /// <summary>
-        /// Stop the background matching process
-        /// </summary>
-        Task StopAsync(CancellationToken cancellationToken);
-
-        /// <summary>
-        /// Attempt to create matches from the current pool (can be called manually)
-        /// </summary>
-        Task<IReadOnlyList<Match>> TryMatchAsync();
-    }
-
-    /// <summary>
     /// Background service that periodically checks the pool and creates matches
     /// </summary>
-    public class MatchMaker : IMatchMaker, IHostedService
+    public class MatchMaker : IHostedService
     {
         private readonly IMatchPool _matchPool;
         private readonly ISessionCreator _sessionCreator;
-        private readonly INotifier _notifier;
-        private readonly ICompletedRequestStore? _completedRequestStore;
+        private readonly IPlayerNotifier _notifier;
+        private readonly ICompletedRequestStore _completedRequestStore;
         private readonly MatchMakerConfig _config;
         private readonly ILogger<MatchMaker> _logger;
         private Timer? _timer;
@@ -76,15 +55,15 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         public MatchMaker(
             IMatchPool matchPool,
             ISessionCreator sessionCreator,
-            INotifier notifier,
-            ICompletedRequestStore? completedRequestStore,
+            IPlayerNotifier notifier,
+            ICompletedRequestStore completedRequestStore,
             MatchMakerConfig config,
             ILogger<MatchMaker> logger)
         {
             _matchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
             _sessionCreator = sessionCreator ?? throw new ArgumentNullException(nameof(sessionCreator));
             _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
-            _completedRequestStore = completedRequestStore; // Nullable - optional feature
+            _completedRequestStore = completedRequestStore ?? throw new ArgumentNullException(nameof(completedRequestStore));
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -111,6 +90,36 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Attempt to create matches from the current pool.
+        /// 
+        /// CUSTOMIZATION POINT: This method implements the core matching algorithm.
+        /// The default implementation uses a simple FIFO (First-In-First-Out) algorithm
+        /// that matches the oldest N requests together.
+        /// 
+        /// COMMON CUSTOMIZATIONS:
+        /// 
+        /// 1. SKILL-BASED MATCHING:
+        ///    - Add skill/MMR metadata to MatchRequest
+        ///    - Filter requests by skill range before matching
+        ///    - Example: var skillFiltered = _matchPool.GetAll().Where(r => Math.Abs(r.Metadata["mmr"] - avgMmr) < 200);
+        /// 
+        /// 2. REGION-BASED MATCHING:
+        ///    - Add region metadata to MatchRequest
+        ///    - Group requests by region before matching
+        ///    - Example: var regionRequests = _matchPool.GetAll().Where(r => r.Metadata["region"] == "us-west");
+        /// 
+        /// 3. ROLE-BASED MATCHING (team games):
+        ///    - Add role metadata (tank, healer, dps)
+        ///    - Ensure balanced team composition
+        ///    - Example: Select 1 tank, 1 healer, 2 dps
+        /// 
+        /// 4. PARTY/GROUP MATCHING:
+        ///    - Add party_id metadata to keep friends together
+        ///    - Match parties as units rather than individual players
+        /// 
+        /// See docs/architecture.md#matchmaker-customization for complete examples.
+        /// </summary>
         public async Task<IReadOnlyList<Match>> TryMatchAsync()
         {
             var matches = new List<Match>();
@@ -118,13 +127,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             try
             {
                 // Clean up expired completed requests
-                if (_completedRequestStore != null)
+                var expiredCompleted = _completedRequestStore.RemoveExpired(_config.RetentionPeriod);
+                if (expiredCompleted.Count > 0)
                 {
-                    var expiredCompleted = _completedRequestStore.RemoveExpired(_config.RetentionPeriod);
-                    if (expiredCompleted.Count > 0)
-                    {
-                        _logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
-                    }
+                    _logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
                 }
 
                 // Remove expired requests first
@@ -134,21 +140,30 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     _logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
                     
                     // Move expired requests to completed store
-                    if (_completedRequestStore != null)
+                    foreach (var expiredRequest in expiredRequests)
                     {
-                        foreach (var expiredRequest in expiredRequests)
-                        {
-                            expiredRequest.Status = Model.MatchRequestStatus.Expired;
-                            expiredRequest.CompletedAt = DateTime.UtcNow;
-                            _completedRequestStore.Add(expiredRequest);
-                        }
+                        expiredRequest.Status = Model.MatchRequestStatus.Expired;
+                        expiredRequest.CompletedAt = DateTime.UtcNow;
+                        _completedRequestStore.Add(expiredRequest);
                     }
                 }
 
+                // MATCHING ALGORITHM: Simple FIFO (First-In-First-Out)
+                // This ensures fairness - players who waited longest get matched first.
+                //
+                // CUSTOMIZATION POINT: Replace this section for custom matching logic.
+                // Examples:
+                // - Skill-based: Filter by MMR/ELO before selecting oldest
+                // - Region-based: Group by region metadata
+                // - Role-based: Ensure team composition (tank, healer, dps)
+                //
                 // Check if we have enough requests to make a match
                 while (_matchPool.Count >= _config.MatchSize)
                 {
-                    // Get the oldest requests
+                    // CUSTOMIZATION POINT: Add filtering logic here
+                    // Example: var eligibleRequests = _matchPool.GetAll().Where(r => r.Metadata["region"] == targetRegion);
+                    
+                    // Get the oldest requests (FIFO)
                     var oldestRequests = _matchPool.GetOldest(_config.MatchSize);
                     if (oldestRequests.Count < _config.MatchSize)
                     {
@@ -198,12 +213,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         }
 
                         // Move matched requests to completed store
-                        if (_completedRequestStore != null)
+                        foreach (var request in requestsForMatch)
                         {
-                            foreach (var request in requestsForMatch)
-                            {
-                                _completedRequestStore.Add(request);
-                            }
+                            _completedRequestStore.Add(request);
                         }
 
                         // Notify

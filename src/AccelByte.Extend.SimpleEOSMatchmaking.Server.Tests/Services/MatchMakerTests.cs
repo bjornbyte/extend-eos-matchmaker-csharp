@@ -21,14 +21,20 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
     public class MatchMakerTests
     {
         private readonly Mock<ISessionCreator> _mockSessionCreator;
-        private readonly Mock<INotifier> _mockNotifier;
+        private readonly Mock<IPlayerNotifier> _mockNotifier;
+        private readonly Mock<ICompletedRequestStore> _mockCompletedRequestStore;
         private readonly Mock<ILogger<MatchMaker>> _mockLogger;
 
         public MatchMakerTests()
         {
             _mockSessionCreator = new Mock<ISessionCreator>();
-            _mockNotifier = new Mock<INotifier>();
+            _mockNotifier = new Mock<IPlayerNotifier>();
+            _mockCompletedRequestStore = new Mock<ICompletedRequestStore>();
             _mockLogger = new Mock<ILogger<MatchMaker>>();
+            
+            // Setup default behavior for CompletedRequestStore
+            _mockCompletedRequestStore.Setup(s => s.RemoveExpired(It.IsAny<TimeSpan>()))
+                .Returns(new List<MatchRequest>());
         }
 
         [Fact]
@@ -63,7 +69,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 matchPool,
                 _mockSessionCreator.Object,
                 _mockNotifier.Object,
-                null, // No completed store for this test
+                _mockCompletedRequestStore.Object,
                 config,
                 _mockLogger.Object);
 
@@ -96,7 +102,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 matchPool,
                 _mockSessionCreator.Object,
                 _mockNotifier.Object,
-                null, // No completed store for this test
+                _mockCompletedRequestStore.Object,
                 config,
                 _mockLogger.Object);
 
@@ -133,7 +139,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 matchPool,
                 _mockSessionCreator.Object,
                 _mockNotifier.Object,
-                null, // No completed store for this test
+                _mockCompletedRequestStore.Object,
                 config,
                 _mockLogger.Object);
 
@@ -168,7 +174,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 matchPool,
                 _mockSessionCreator.Object,
                 _mockNotifier.Object,
-                null, // No completed store for this test
+                _mockCompletedRequestStore.Object,
                 config,
                 _mockLogger.Object);
 
@@ -212,7 +218,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 matchPool,
                 _mockSessionCreator.Object,
                 _mockNotifier.Object,
-                null, // No completed store for this test
+                _mockCompletedRequestStore.Object,
                 config,
                 _mockLogger.Object);
 
@@ -265,7 +271,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 matchPool,
                 _mockSessionCreator.Object,
                 _mockNotifier.Object,
-                null, // No completed store for this test
+                _mockCompletedRequestStore.Object,
                 config,
                 _mockLogger.Object);
 
@@ -418,48 +424,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             Assert.Null(completedStore.Get(oldRequest.RequestId));
         }
 
-        [Fact]
-        public async Task TryMatchAsync_WithNullCompletedStore_StillWorks()
-        {
-            // Arrange
-            var config = new MatchMakerConfig
-            {
-                MatchSize = 2,
-                TickInterval = TimeSpan.FromSeconds(1),
-                RequestTimeout = TimeSpan.FromSeconds(60)
-            };
-
-            var matchPool = new MatchPool();
-            var request1 = new MatchRequest("user1");
-            var request2 = new MatchRequest("user2");
-            matchPool.Add(request1);
-            matchPool.Add(request2);
-
-            var sessionInfo = new SessionInfo
-            {
-                SessionId = "session-123",
-                RequestIds = new List<string> { request1.RequestId, request2.RequestId },
-                UserIds = new List<string> { "user1", "user2" },
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _mockSessionCreator.Setup(s => s.GetSessionAsync(It.IsAny<ModelMatch>()))
-                .ReturnsAsync(sessionInfo);
-
-            var matchMaker = new MatchMaker(
-                matchPool,
-                _mockSessionCreator.Object,
-                _mockNotifier.Object,
-                null, // No completed store
-                config,
-                _mockLogger.Object);
-
-            // Act
-            var matches = await matchMaker.TryMatchAsync();
-
-            // Assert
-            Assert.Single(matches);
-            Assert.Equal(0, matchPool.Count);
-        }
     }
 }
+

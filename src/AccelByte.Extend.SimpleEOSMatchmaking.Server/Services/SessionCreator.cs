@@ -15,8 +15,29 @@ using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// Interface for obtaining game sessions for matched players.
-    /// Implementations may create new sessions or find existing ones.
+    /// APPLICATION-LEVEL EXTENSION POINT: Interface for obtaining game sessions for matched players.
+    /// 
+    /// This is an extension point that supports two session provider modes:
+    /// 
+    /// CREATE MODE (EOSSessionCreator):
+    /// - Matchmaker creates new EOS sessions for each match
+    /// - Suitable for P2P gameplay or integration with dedicated server providers
+    /// - Players connect directly to each other or to allocated servers
+    /// 
+    /// FIND MODE (EOSSessionFinder):
+    /// - Matchmaker finds existing available EOS sessions created by game servers
+    /// - Suitable for player-hosted servers or pre-allocated dedicated servers
+    /// - Game servers create sessions and wait for matchmaker to assign players
+    /// 
+    /// When to implement custom session creator:
+    /// - When integrating with dedicated server providers (GameLift, Agones, etc.)
+    /// - When you need custom session configuration or metadata
+    /// - When you have a hybrid approach (both P2P and dedicated servers)
+    /// 
+    /// Configuration:
+    /// Set "SessionProvider:Mode" to "create" or "find" in appsettings.json
+    /// 
+    /// See docs/architecture.md#session-provider-modes for decision tree and examples.
     /// </summary>
     public interface ISessionCreator
     {

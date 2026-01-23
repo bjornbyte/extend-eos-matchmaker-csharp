@@ -97,13 +97,26 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 .Configure<EOSConfig>(builder.Configuration.GetSection("EOS"))
                 .AddSingleton<EOSSDKService>()
                 .AddHostedService(sp => sp.GetRequiredService<EOSSDKService>())
-                // Register matchmaking services
+                
+                // INFRASTRUCTURE EXTENSION POINT: IMatchPool
+                // Default: In-memory implementation (MatchPool) - suitable for single-instance deployments only.
+                // For multi-instance deployments, replace with distributed implementation (Redis, database).
+                // See docs/architecture.md#extension-points for examples.
                 .AddSingleton<IMatchPool, MatchPool>()
+                
+                // INFRASTRUCTURE EXTENSION POINT: ICompletedRequestStore
+                // Default: In-memory implementation (CompletedRequestStore) - data lost on service restart.
+                // For durability across restarts, replace with persistent implementation (database).
+                // See docs/architecture.md#extension-points for examples.
                 .AddSingleton<ICompletedRequestStore, CompletedRequestStore>();
 
             // Register session provider based on configuration
             if (sessionProviderConfig.Mode == "create")
             {
+                // APPLICATION EXTENSION POINT: ISessionCreator (Create Mode)
+                // Default: EOSSessionCreator - creates new EOS sessions for each match.
+                // Customize this if you need different session creation logic or use a different backend.
+                // See docs/architecture.md#session-provider-modes for mode selection guidance.
                 builder.Services.AddSingleton<ISessionCreator, EOSSessionCreator>();
             }
             else // "find"
@@ -113,16 +126,35 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                     .Get<EOSSessionFinderConfig>() ?? new EOSSessionFinderConfig();
                 
                 builder.Services.AddSingleton(finderConfig);
+                
+                // INFRASTRUCTURE EXTENSION POINT: IClaimedSessionsCache (Find Mode Only)
+                // Default: In-memory implementation - suitable for single-instance deployments only.
+                // For multi-instance deployments, replace with distributed cache (Redis).
+                // See docs/architecture.md#extension-points for examples.
                 builder.Services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
+                
+                // APPLICATION EXTENSION POINT: ISessionOwnerNotifier (Find Mode Only)
+                // Default: StubSessionOwnerNotifier - does nothing (TODO: implement your notification mechanism).
+                // Replace with your game server notification implementation (HTTP, gRPC, message queue).
+                // See docs/architecture.md#extension-points for examples.
                 builder.Services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
+                
+                // APPLICATION EXTENSION POINT: ISessionCreator (Find Mode)
+                // Default: EOSSessionFinder - finds and claims existing EOS sessions.
+                // Customize this if you need different session finding logic or use a different backend.
+                // See docs/architecture.md#session-provider-modes for mode selection guidance.
                 builder.Services.AddSingleton<ISessionCreator, EOSSessionFinder>();
             }
 
             builder.Services
-                .AddSingleton<INotifier, LoggingNotifier>()
+                // APPLICATION EXTENSION POINT: IPlayerNotifier
+                // Default: LoggingPlayerNotifier - only logs match notifications to console (TODO: implement your notification mechanism).
+                // Replace with your game-specific notification implementation (webhook, push notification, message queue).
+                // See docs/architecture.md#extension-points for examples.
+                .AddSingleton<IPlayerNotifier, LoggingPlayerNotifier>()
                 .AddSingleton(matchMakerConfig)
-                .AddSingleton<IMatchMaker, MatchMaker>()
-                .AddHostedService(sp => sp.GetRequiredService<IMatchMaker>() as MatchMaker)
+                .AddSingleton<MatchMaker>()
+                .AddHostedService<MatchMaker>()
                 .AddOpenTelemetry()
                 .WithTracing((traceConfig) =>
                 {

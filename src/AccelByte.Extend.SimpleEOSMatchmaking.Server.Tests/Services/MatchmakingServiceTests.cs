@@ -16,14 +16,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
     public class MatchmakingServiceTests
     {
         private readonly Mock<IMatchPool> _mockMatchPool;
+        private readonly Mock<ICompletedRequestStore> _mockCompletedRequestStore;
         private readonly Mock<ILogger<MatchmakingService>> _mockLogger;
         private readonly MatchmakingService _service;
 
         public MatchmakingServiceTests()
         {
             _mockMatchPool = new Mock<IMatchPool>();
+            _mockCompletedRequestStore = new Mock<ICompletedRequestStore>();
             _mockLogger = new Mock<ILogger<MatchmakingService>>();
-            _service = new MatchmakingService(_mockMatchPool.Object, null, _mockLogger.Object);
+            _service = new MatchmakingService(_mockMatchPool.Object, _mockCompletedRequestStore.Object, _mockLogger.Object);
         }
 
         [Fact]
@@ -282,29 +284,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 r.RequestId == matchRequest.RequestId && 
                 r.Status == ModelMatchRequestStatus.Cancelled &&
                 r.CompletedAt.HasValue)), Times.Once);
-        }
-
-        [Fact]
-        public async Task GetMatchStatus_WorksWithNullCompletedStore()
-        {
-            // Arrange
-            var matchRequest = new MatchRequest("user123");
-            var request = new AccelByte.Extend.SimpleEOSMatchmaking.GetMatchStatusRequest
-            {
-                RequestId = matchRequest.RequestId
-            };
-            var context = CreateMockContext("user123");
-            
-            _mockMatchPool.Setup(p => p.Get(matchRequest.RequestId)).Returns(matchRequest);
-            
-            var service = new MatchmakingService(_mockMatchPool.Object, null, _mockLogger.Object);
-
-            // Act
-            var response = await service.GetMatchStatus(request, context);
-
-            // Assert
-            Assert.NotNull(response);
-            Assert.Equal(matchRequest.RequestId, response.RequestId);
         }
 
         private ServerCallContext CreateMockContext(string userId)

@@ -9,14 +9,14 @@ using Xunit;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
 {
-    public class NotifierTests
+    public class PlayerNotifierTests
     {
         [Fact]
-        public async Task LoggingNotifier_NotifyMatchAsync_LogsMatchInformation()
+        public async Task LoggingPlayerNotifier_NotifyMatchAsync_LogsMatchInformation()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<LoggingNotifier>>();
-            var notifier = new LoggingNotifier(mockLogger.Object);
+            var mockLogger = new Mock<ILogger<LoggingPlayerNotifier>>();
+            var notifier = new LoggingPlayerNotifier(mockLogger.Object);
             
             var sessionInfo = new SessionInfo
             {
@@ -42,11 +42,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         }
 
         [Fact]
-        public async Task LoggingNotifier_NotifyMatchAsync_WithNullSessionInfo_ThrowsArgumentNullException()
+        public async Task LoggingPlayerNotifier_NotifyMatchAsync_WithNullSessionInfo_ThrowsArgumentNullException()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<LoggingNotifier>>();
-            var notifier = new LoggingNotifier(mockLogger.Object);
+            var mockLogger = new Mock<ILogger<LoggingPlayerNotifier>>();
+            var notifier = new LoggingPlayerNotifier(mockLogger.Object);
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentNullException>(() => 
@@ -54,11 +54,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         }
 
         [Fact]
-        public async Task LoggingNotifier_NotifyMatchAsync_CompletesSuccessfully()
+        public async Task LoggingPlayerNotifier_NotifyMatchAsync_CompletesSuccessfully()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<LoggingNotifier>>();
-            var notifier = new LoggingNotifier(mockLogger.Object);
+            var mockLogger = new Mock<ILogger<LoggingPlayerNotifier>>();
+            var notifier = new LoggingPlayerNotifier(mockLogger.Object);
             
             var sessionInfo = new SessionInfo
             {
@@ -77,10 +77,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         }
 
         [Fact]
-        public async Task INotifier_Interface_CanBeImplemented()
+        public async Task IPlayerNotifier_Interface_CanBeImplemented()
         {
             // Arrange
-            var mockNotifier = new Mock<INotifier>();
+            var mockNotifier = new Mock<IPlayerNotifier>();
             var sessionInfo = new SessionInfo
             {
                 SessionId = "session-789",
@@ -101,11 +101,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         }
 
         [Fact]
-        public async Task LoggingNotifier_NotifyMatchAsync_LogsAllUserIds()
+        public async Task LoggingPlayerNotifier_NotifyMatchAsync_LogsAllUserIds()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<LoggingNotifier>>();
-            var notifier = new LoggingNotifier(mockLogger.Object);
+            var mockLogger = new Mock<ILogger<LoggingPlayerNotifier>>();
+            var notifier = new LoggingPlayerNotifier(mockLogger.Object);
             
             var sessionInfo = new SessionInfo
             {
@@ -132,11 +132,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         }
 
         [Fact]
-        public async Task LoggingNotifier_NotifyMatchAsync_WithEmptyUserIds_StillLogs()
+        public async Task LoggingPlayerNotifier_NotifyMatchAsync_WithEmptyUserIds_StillLogs()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<LoggingNotifier>>();
-            var notifier = new LoggingNotifier(mockLogger.Object);
+            var mockLogger = new Mock<ILogger<LoggingPlayerNotifier>>();
+            var notifier = new LoggingPlayerNotifier(mockLogger.Object);
             
             var sessionInfo = new SessionInfo
             {
