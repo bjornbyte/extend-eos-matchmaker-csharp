@@ -424,7 +424,7 @@ On the App Detail page, under the **Environment Configuration** section, set the
 Use extend-helper-cli to build and upload the container image:
 
 ```bash
-extend-helper-cli image-upload --namespace <your-namespace> --app <your-app-name> --image-tag v0.0.1
+extend-helper-cli image-upload --login --namespace <namespace> --app <app-name> --image-tag v0.0.1
 ```
 
 > ⚠️ Run this command from your project directory. If you are in a different directory, add the `--work-dir <project-dir>` option to specify the correct path.
