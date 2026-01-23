@@ -65,7 +65,7 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
     - Note when to use distributed cache (Redis)
     - _Requirements: 13.1, 13.2_
 
-- [ ] 4. Add TODO comments to stub implementations
+- [x] 4. Add TODO comments to stub implementations
   - [x] 4.1 Add TODO comment to `LoggingPlayerNotifier` class
     - Add comment: "// TODO: Replace with your game-specific notification implementation (webhook, push notification, etc.)"
     - _Requirements: 2.4, 13.3_
@@ -81,28 +81,28 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
   - Add inline examples showing common modifications (skill-based, region-based)
   - _Requirements: 8.1, 8.4_
 
-- [ ] 6. Add inline comments to Program.cs for extension points
-  - [ ] 6.1 Add comment for IMatchPool registration
+- [x] 6. Add inline comments to Program.cs for extension points
+  - [x] 6.1 Add comment for IMatchPool registration
     - Explain it's infrastructure-level extension point
     - Note default is in-memory (single-instance only)
     - _Requirements: 13.5_
   
-  - [ ] 6.2 Add comment for ICompletedRequestStore registration
+  - [x] 6.2 Add comment for ICompletedRequestStore registration
     - Explain it's infrastructure-level extension point
     - Note default is in-memory (no durability across restarts)
     - _Requirements: 13.5_
   
-  - [ ] 6.3 Add comment for IPlayerNotifier registration
+  - [x] 6.3 Add comment for IPlayerNotifier registration
     - Explain it's application-level extension point
     - Note default just logs to console
     - _Requirements: 13.5_
   
-  - [ ] 6.4 Add comment for ISessionCreator registration
+  - [x] 6.4 Add comment for ISessionCreator registration
     - Explain it's application-level extension point
     - Note the two modes (create vs find)
     - _Requirements: 13.5_
   
-  - [ ] 6.5 Add comment for ISessionOwnerNotifier registration (find mode)
+  - [x] 6.5 Add comment for ISessionOwnerNotifier registration (find mode)
     - Explain it's application-level extension point
     - Note it's only used in find mode
     - _Requirements: 13.5_
