@@ -10,11 +10,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
     public class EOSSessionFinderConfig
     {
         /// <summary>
-        /// Maximum number of retry attempts when session claiming fails due to concurrent access
-        /// </summary>
-        public int MaxRetryAttempts { get; set; } = 3;
-
-        /// <summary>
         /// Session bucket identifier to filter search results
         /// </summary>
         public string BucketId { get; set; } = "default";
@@ -23,5 +18,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
         /// Maximum number of search results to retrieve
         /// </summary>
         public int MaxSearchResults { get; set; } = 10;
+
+        /// <summary>
+        /// Expiration time in seconds for claimed session cache entries
+        /// </summary>
+        public int ClaimedSessionExpirationSeconds { get; set; } = 300; // 5 minutes
     }
 }

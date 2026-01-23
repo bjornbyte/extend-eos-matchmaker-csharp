@@ -113,6 +113,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                     .Get<EOSSessionFinderConfig>() ?? new EOSSessionFinderConfig();
                 
                 builder.Services.AddSingleton(finderConfig);
+                builder.Services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
+                builder.Services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
                 builder.Services.AddSingleton<ISessionCreator, EOSSessionFinder>();
             }
 

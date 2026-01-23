@@ -69,6 +69,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
             {
                 var finderConfig = configuration.GetSection("SessionFinder").Get<EOSSessionFinderConfig>() ?? new EOSSessionFinderConfig();
                 services.AddSingleton(finderConfig);
+                services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
+                services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
                 services.AddSingleton<ISessionCreator, EOSSessionFinder>();
             }
 
@@ -78,6 +80,76 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
             var sessionCreator = serviceProvider.GetService<ISessionCreator>();
             Assert.NotNull(sessionCreator);
             Assert.IsType<EOSSessionFinder>(sessionCreator);
+        }
+
+        [Fact]
+        public void DI_WithFindMode_RegistersIClaimedSessionsCache()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            services.AddLogging(); // Add logging services
+            services.AddSingleton<EOSSDKService>(sp => null!); // Mock EOS SDK service
+            
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new[]
+                {
+                    new System.Collections.Generic.KeyValuePair<string, string?>("SessionProvider:Mode", "find")
+                })
+                .Build();
+
+            // Act
+            var sessionProviderConfig = configuration.GetSection("SessionProvider").Get<SessionProviderConfig>() ?? new SessionProviderConfig();
+            
+            if (sessionProviderConfig.Mode == "find")
+            {
+                var finderConfig = configuration.GetSection("SessionFinder").Get<EOSSessionFinderConfig>() ?? new EOSSessionFinderConfig();
+                services.AddSingleton(finderConfig);
+                services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
+                services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
+                services.AddSingleton<ISessionCreator, EOSSessionFinder>();
+            }
+
+            var serviceProvider = services.BuildServiceProvider();
+
+            // Assert
+            var cache = serviceProvider.GetService<IClaimedSessionsCache>();
+            Assert.NotNull(cache);
+            Assert.IsType<InMemoryClaimedSessionsCache>(cache);
+        }
+
+        [Fact]
+        public void DI_WithFindMode_RegistersISessionOwnerNotifier()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            services.AddLogging(); // Add logging services
+            services.AddSingleton<EOSSDKService>(sp => null!); // Mock EOS SDK service
+            
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new[]
+                {
+                    new System.Collections.Generic.KeyValuePair<string, string?>("SessionProvider:Mode", "find")
+                })
+                .Build();
+
+            // Act
+            var sessionProviderConfig = configuration.GetSection("SessionProvider").Get<SessionProviderConfig>() ?? new SessionProviderConfig();
+            
+            if (sessionProviderConfig.Mode == "find")
+            {
+                var finderConfig = configuration.GetSection("SessionFinder").Get<EOSSessionFinderConfig>() ?? new EOSSessionFinderConfig();
+                services.AddSingleton(finderConfig);
+                services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
+                services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
+                services.AddSingleton<ISessionCreator, EOSSessionFinder>();
+            }
+
+            var serviceProvider = services.BuildServiceProvider();
+
+            // Assert
+            var notifier = serviceProvider.GetService<ISessionOwnerNotifier>();
+            Assert.NotNull(notifier);
+            Assert.IsType<StubSessionOwnerNotifier>(notifier);
         }
 
         [Fact]

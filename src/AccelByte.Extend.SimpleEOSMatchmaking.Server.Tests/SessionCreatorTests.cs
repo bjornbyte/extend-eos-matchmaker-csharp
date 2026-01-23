@@ -15,6 +15,7 @@ using DotNetEnv;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Services;
+using AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Fixtures;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 {
@@ -70,75 +71,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             catch
             {
                 // Ignore errors writing to test output
-            }
-        }
-    }
-
-    /// <summary>
-    /// Shared fixture for EOS SDK initialization
-    /// EOS SDK can only be initialized once per process, so we use a fixture
-    /// </summary>
-    public class EOSFixture : IDisposable
-    {
-        public EOSSDKService EOSService { get; }
-        public bool IsInitialized { get; private set; }
-
-        public EOSFixture()
-        {
-            // Load .env file from project root
-            var currentDir = Directory.GetCurrentDirectory();
-            var projectRoot = Path.GetFullPath(Path.Combine(currentDir, "..", "..", "..", "..", ".."));
-            var envPath = Path.Combine(projectRoot, ".env");
-            
-            if (File.Exists(envPath))
-            {
-                Console.WriteLine($"Loading environment variables from: {envPath}");
-                Env.Load(envPath);
-            }
-
-            // Setup logging
-            var loggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole();
-                builder.SetMinimumLevel(LogLevel.Debug);
-            });
-
-            // Initialize EOS SDK Service
-            var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
-            var eosConfig = new EOSConfig();
-            eosConfig.ReadEnvironmentVariables();
-
-            var eosOptions = Options.Create(eosConfig);
-            EOSService = new EOSSDKService(eosLogger, eosOptions);
-
-            try
-            {
-                // Start the EOS SDK with a timeout
-                var startTask = EOSService.StartAsync(CancellationToken.None);
-                if (!startTask.Wait(TimeSpan.FromSeconds(10)))
-                {
-                    Console.WriteLine("EOS SDK initialization timed out after 10 seconds");
-                    IsInitialized = false;
-                    return;
-                }
-                IsInitialized = true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to initialize EOS SDK: {ex.Message}");
-                IsInitialized = false;
-            }
-        }
-
-        public void Dispose()
-        {
-            if (IsInitialized)
-            {
-                // Note: Disposing the EOS Platform will destroy all sessions created by it.
-                // This is expected behavior - sessions are tied to the platform lifecycle.
-                // In production, sessions persist as long as the matchmaking service is running.
-                EOSService?.StopAsync(CancellationToken.None).Wait();
-                EOSService?.Dispose();
             }
         }
     }
@@ -226,15 +158,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
     /// 2. Uncomment the tests below
     /// 3. Run: dotnet test --filter "FullyQualifiedName~SessionCreatorIntegrationTests"
     /// </summary>
-    public class SessionCreatorIntegrationTests : IClassFixture<EOSFixture>
+    [Collection("EOS Integration")]
+    public class SessionCreatorIntegrationTests
     {
         // Integration tests are commented out to prevent EOS SDK initialization during normal test runs
         // Uncomment these tests when you want to run integration tests manually
         
         private readonly ITestOutputHelper _output;
-        private readonly EOSFixture _eosFixture;
+        private readonly SharedEOSFixture _eosFixture;
 
-        public SessionCreatorIntegrationTests(ITestOutputHelper output, EOSFixture eosFixture)
+        public SessionCreatorIntegrationTests(ITestOutputHelper output, SharedEOSFixture eosFixture)
         {
             _output = output;
             _eosFixture = eosFixture;

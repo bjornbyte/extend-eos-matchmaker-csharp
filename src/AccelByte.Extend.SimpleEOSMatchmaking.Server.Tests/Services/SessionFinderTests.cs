@@ -20,37 +20,43 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public void Constructor_WithValidDependencies_CreatesInstance()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var logger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
+            var cache = new Mock<IClaimedSessionsCache>();
+            var notifier = new Mock<ISessionOwnerNotifier>();
 
             // Act
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var finder = new EOSSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
 
             // Assert
-            Assert.NotNull(sessionFinder);
+            Assert.NotNull(finder);
         }
 
         [Fact]
         public void EOSSessionFinder_ImplementsISessionCreator()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var logger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
+            var cache = new Mock<IClaimedSessionsCache>();
+            var notifier = new Mock<ISessionOwnerNotifier>();
 
             // Act
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var finder = new EOSSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
 
             // Assert
-            Assert.IsAssignableFrom<ISessionCreator>(sessionFinder);
+            Assert.IsAssignableFrom<ISessionCreator>(finder);
         }
 
         [Fact]
         public async Task GetSessionAsync_MethodExists()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var logger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var cache = new Mock<IClaimedSessionsCache>();
+            var notifier = new Mock<ISessionOwnerNotifier>();
+            var finder = new EOSSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
 
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
@@ -58,8 +64,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             });
 
             // Act & Assert
-            // Method exists and can be called (will throw NoAvailableSessionsException until search logic is implemented)
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            // Method exists and can be called (will throw InvalidOperationException when EOS service is null)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => finder.GetSessionAsync(match));
         }
 
         // Session Search Logic Tests
@@ -70,17 +76,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             // Act & Assert
             // SearchForEmptySessionAsync is private, so we test through GetSessionAsync
-            // When no sessions exist, should throw NoAvailableSessionsException
+            // When EOS service is null, should throw InvalidOperationException
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
                 new MatchRequest("user1", new Dictionary<string, string>())
             });
 
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -89,16 +102,23 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             // Act & Assert
-            // When all sessions have match_id, should throw NoAvailableSessionsException
+            // When all sessions have match_id, should throw InvalidOperationException (EOS service is null)
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
                 new MatchRequest("user1", new Dictionary<string, string>())
             });
 
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -107,17 +127,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig { BucketId = "test-bucket" };
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             // Act & Assert
             // This test verifies bucket filtering is applied
-            // For now, will throw NoAvailableSessionsException until search logic is implemented
+            // For now, will throw InvalidOperationException (EOS service is null)
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
                 new MatchRequest("user1", new Dictionary<string, string>())
             });
 
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -126,17 +153,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig { MaxSearchResults = 5 };
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             // Act & Assert
             // This test verifies max results is applied
-            // For now, will throw NoAvailableSessionsException until search logic is implemented
+            // For now, will throw InvalidOperationException (EOS service is null)
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
                 new MatchRequest("user1", new Dictionary<string, string>())
             });
 
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -145,17 +179,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             // Act & Assert
             // This test verifies SEARCH_EMPTY_SERVERS_ONLY is set to true
-            // For now, will throw NoAvailableSessionsException until search logic is implemented
+            // For now, will throw InvalidOperationException (EOS service is null)
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
                 new MatchRequest("user1", new Dictionary<string, string>())
             });
 
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         // Session Claiming Logic Tests
@@ -166,7 +207,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
@@ -175,8 +223,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
 
             // Act & Assert
             // TryClaimSessionAsync is private, so we test through GetSessionAsync
-            // For now, will throw NoAvailableSessionsException until claiming logic is implemented
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            // For now, will throw InvalidOperationException (EOS service is null)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -185,7 +233,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
@@ -194,8 +249,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
 
             // Act & Assert
             // When claim fails due to concurrent modification, should retry
-            // For now, will throw NoAvailableSessionsException until claiming logic is implemented
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            // For now, will throw InvalidOperationException (EOS service is null)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -204,7 +259,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
@@ -213,8 +275,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
 
             // Act & Assert
             // Verify that match_id attribute is set when claiming
-            // For now, will throw NoAvailableSessionsException until claiming logic is implemented
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            // For now, will throw InvalidOperationException (EOS service is null)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -223,7 +285,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
@@ -233,8 +302,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
 
             // Act & Assert
             // Verify that match_request_ids attribute is set with JSON serialized request IDs
-            // For now, will throw NoAvailableSessionsException until claiming logic is implemented
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            // For now, will throw InvalidOperationException (EOS service is null)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
 
         [Fact]
@@ -243,7 +312,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Arrange
             var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
             var config = new EOSSessionFinderConfig();
-            var sessionFinder = new EOSSessionFinder(mockLogger.Object, null!, config);
+            var mockCache = new Mock<IClaimedSessionsCache>();
+            var mockNotifier = new Mock<ISessionOwnerNotifier>();
+            var sessionFinder = new EOSSessionFinder(
+                mockLogger.Object, 
+                null!, 
+                config, 
+                mockCache.Object, 
+                mockNotifier.Object);
 
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
@@ -252,8 +328,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
 
             // Act & Assert
             // Verify that claimed_at attribute is set with ISO 8601 timestamp
-            // For now, will throw NoAvailableSessionsException until claiming logic is implemented
-            await Assert.ThrowsAsync<NoAvailableSessionsException>(() => sessionFinder.GetSessionAsync(match));
+            // For now, will throw InvalidOperationException (EOS service is null)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sessionFinder.GetSessionAsync(match));
         }
     }
 }

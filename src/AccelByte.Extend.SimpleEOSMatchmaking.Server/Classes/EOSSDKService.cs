@@ -20,6 +20,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
     {
         private readonly ILogger<EOSSDKService> _logger;
         private readonly EOSConfig _config;
+        private readonly object _tickLock = new object();
         private PlatformInterface? _platformInterface;
         private bool _disposed;
 
@@ -37,6 +38,18 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
         /// </summary>
         public PlatformInterface? Platform => _platformInterface;
 
+        /// <summary>
+        /// Thread-safe wrapper for Platform.Tick().
+        /// EOS SDK's Tick() is not thread-safe and must be called from only one thread at a time.
+        /// </summary>
+        public void Tick()
+        {
+            lock (_tickLock)
+            {
+                _platformInterface?.Tick();
+            }
+        }
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
             try
@@ -51,6 +64,34 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
                     ProductName = "SimpleEOSMatchmaking",
                     ProductVersion = "1.0.0"
                 };
+
+                // Set up logging callback to suppress message boxes and redirect to our logger
+                Epic.OnlineServices.Logging.LoggingInterface.SetCallback((ref Epic.OnlineServices.Logging.LogMessage message) =>
+                {
+                    var logMessage = $"[EOS SDK] {message.Category}: {message.Message}";
+                    switch (message.Level)
+                    {
+                        case Epic.OnlineServices.Logging.LogLevel.Fatal:
+                        case Epic.OnlineServices.Logging.LogLevel.Error:
+                            _logger.LogError(logMessage);
+                            break;
+                        case Epic.OnlineServices.Logging.LogLevel.Warning:
+                            _logger.LogWarning(logMessage);
+                            break;
+                        case Epic.OnlineServices.Logging.LogLevel.Info:
+                            _logger.LogInformation(logMessage);
+                            break;
+                        case Epic.OnlineServices.Logging.LogLevel.Verbose:
+                        case Epic.OnlineServices.Logging.LogLevel.VeryVerbose:
+                            _logger.LogDebug(logMessage);
+                            break;
+                    }
+                });
+
+                // Set log level to Warning to reduce noise (this suppresses the "hardcoded duplicate" message boxes)
+                Epic.OnlineServices.Logging.LoggingInterface.SetLogLevel(
+                    Epic.OnlineServices.Logging.LogCategory.AllCategories,
+                    Epic.OnlineServices.Logging.LogLevel.Warning);
 
                 var initializeResult = PlatformInterface.Initialize(ref initializeOptions);
                 if (initializeResult != Result.Success)

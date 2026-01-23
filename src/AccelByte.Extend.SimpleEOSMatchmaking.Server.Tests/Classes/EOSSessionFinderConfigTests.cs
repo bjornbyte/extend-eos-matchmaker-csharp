@@ -10,16 +10,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Classes
     public class EOSSessionFinderConfigTests
     {
         [Fact]
-        public void Constructor_SetsDefaultMaxRetryAttempts()
-        {
-            // Arrange & Act
-            var config = new EOSSessionFinderConfig();
-
-            // Assert
-            Assert.Equal(3, config.MaxRetryAttempts);
-        }
-
-        [Fact]
         public void Constructor_SetsDefaultBucketId()
         {
             // Arrange & Act
@@ -40,16 +30,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Classes
         }
 
         [Fact]
-        public void MaxRetryAttempts_CanBeSet()
+        public void Constructor_SetsDefaultClaimedSessionExpirationSeconds()
         {
-            // Arrange
+            // Arrange & Act
             var config = new EOSSessionFinderConfig();
 
-            // Act
-            config.MaxRetryAttempts = 5;
-
             // Assert
-            Assert.Equal(5, config.MaxRetryAttempts);
+            Assert.Equal(300, config.ClaimedSessionExpirationSeconds);
         }
 
         [Fact]
@@ -76,6 +63,19 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Classes
 
             // Assert
             Assert.Equal(20, config.MaxSearchResults);
+        }
+
+        [Fact]
+        public void ClaimedSessionExpirationSeconds_CanBeSet()
+        {
+            // Arrange
+            var config = new EOSSessionFinderConfig();
+
+            // Act
+            config.ClaimedSessionExpirationSeconds = 600;
+
+            // Assert
+            Assert.Equal(600, config.ClaimedSessionExpirationSeconds);
         }
     }
 }
