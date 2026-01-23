@@ -407,47 +407,27 @@ dotnet test
 
 ## Deployment to AccelByte
 
-### Prerequisites
-
-1. **Download extend-helper-cli**:
-   - Go to the [extend-helper-cli releases page](https://github.com/AccelByte/extend-helper-cli/releases)
-   - Download the latest executable for your operating system
-   - Add the executable to your PATH or note its location
-
-   > ⚠️ We recommend to always use the latest version available.
-
-2. **Create Extend App** in AGS Admin Portal:
-   - Navigate to **Extend** → **Service Extension**
-   - Click **Create New App**
-   - Enter app name and description
-   - Note the app name for deployment
-
 ### Deployment Steps
 
-#### 1. Build Docker Image
+#### 1. Create an Extend Service Extension App
+
+If you do not already have one, create a new Extend Service Extension App in the AGS Admin Portal:
+- Navigate to **Extend** → **Service Extension**
+- Click **Create New App**
+- Enter app name and description
+- Note the app name for deployment
+
+On the App Detail page, under the **Environment Configuration** section, set the required secrets and/or variables.
+
+#### 2. Build and Push the Container Image
+
+Use extend-helper-cli to build and upload the container image:
 
 ```bash
-docker build -t extend-eos-matchmaking:v0.0.1 .
+extend-helper-cli image-upload --namespace <your-namespace> --app <your-app-name> --image-tag v0.0.1
 ```
 
-#### 2. Login to AccelByte Registry
-
-```bash
-extend-helper-cli dockerlogin --namespace <your-namespace>
-```
-
-#### 3. Upload Image
-
-```bash
-extend-helper-cli image-upload \
-  --namespace <your-namespace> \
-  --app <your-app-name> \
-  --image-tag v0.0.1
-```
-
-#### 4. Configure Secrets in Admin Portal
-
-Navigate to your app in the Admin Portal and configure:
+> ⚠️ Run this command from your project directory. If you are in a different directory, add the `--work-dir <project-dir>` option to specify the correct path.
 
 **Required Environment Variables:**
 - `AB_CLIENT_ID` - Your OAuth client ID
@@ -467,16 +447,16 @@ Navigate to your app in the Admin Portal and configure:
 > See [Configuration](#configuration) section for complete list of optional parameters and when to change them.
 > See [Deployment Scenarios](#deployment-scenarios) for single-instance vs multi-instance deployment guidance.
 
-#### 5. Deploy Image
+#### 3. Deploy the Image
 
-In the Admin Portal:
+On the App Detail page:
 1. Go to your app's **Versions** tab
 2. Select the uploaded image version
 3. Click **Deploy**
 4. Wait for deployment to complete
 5. Note the service URL
 
-#### 6. Verify Deployment
+#### 4. Verify Deployment
 
 ```bash
 curl https://<your-app-url>/apidocs/
