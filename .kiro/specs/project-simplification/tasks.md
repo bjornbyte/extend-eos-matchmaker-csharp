@@ -112,14 +112,14 @@ This task list implements the simplification of the Simple EOS Matchmaking Servi
   - Verify all unit tests pass after code changes
   - Ask the user if questions arise
 
-- [ ] 8. Consolidate README.md
-  - [ ] 8.1 Reduce README to under 300 lines
+- [x] 8. Consolidate README.md
+  - [x] 8.1 Reduce README to under 300 lines
     - Keep only: overview, key features, quick start, links to detailed docs
     - Remove detailed explanations (move to architecture.md)
     - Remove duplicate configuration examples (link to setup.md)
     - _Requirements: 1.1, 1.2, 1.3_
   
-  - [ ] 8.2 Add clear section links
+  - [x] 8.2 Add clear section links
     - Add prominent links to all /docs files at top
     - Use progressive disclosure pattern (brief + link to details)
     - _Requirements: 1.2_

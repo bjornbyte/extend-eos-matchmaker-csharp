@@ -11,143 +11,30 @@ flowchart LR
    GW --- SV
 ```
 
-`AccelByte Gaming Services` (AGS) capabilities can be enhanced using 
-`Extend Service Extension` apps. An `Extend Service Extension` app is a RESTful 
-web service created using a stack that includes a `gRPC Server` and the 
-[gRPC Gateway](https://github.com/grpc-ecosystem/grpc-gateway?tab=readme-ov-file#about).
+`AccelByte Gaming Services` (AGS) capabilities can be enhanced using `Extend Service Extension` apps. An `Extend Service Extension` app is a RESTful web service created using a stack that includes a `gRPC Server` and the [gRPC Gateway](https://github.com/grpc-ecosystem/grpc-gateway?tab=readme-ov-file#about).
 
 ## Overview
 
-This repository provides a simple matchmaking service implemented as an `Extend Service Extension` 
-app written in `C#`. It includes a matchmaking service with three endpoints to submit match requests, 
-check match status, and cancel pending requests. The service uses Epic Online Services (EOS) SDK 
-for session creation and includes built-in instrumentation for observability, ensuring that metrics, 
-traces, and logs are available upon deployment.
+This repository provides a simple matchmaking service implemented as an `Extend Service Extension` app written in `C#`. It includes a matchmaking service with three endpoints to submit match requests, check match status, and cancel pending requests. The service uses Epic Online Services (EOS) SDK for session creation and includes built-in instrumentation for observability.
 
 ## Documentation
 
-- **[Setup Guide](docs/setup.md)** - Complete setup, configuration, and deployment instructions
-- **[Architecture Guide](docs/architecture.md)** - Technical architecture and design decisions
+**📚 Complete Documentation:**
+- **[Setup Guide](docs/setup.md)** - Prerequisites, configuration, and deployment
+- **[Architecture Guide](docs/architecture.md)** - Technical design, components, and extensibility
 - **[Operations Guide](docs/operations.md)** - Testing, monitoring, and troubleshooting
-- **[Testing Guide](docs/testing_guide.md)** - Comprehensive manual testing instructions
+- **[Testing Guide](docs/testing_guide.md)** - Manual testing procedures
 - **[Dev Container Guide](docs/devcontainer.md)** - Using Dev Containers and GitHub Codespaces
 
-### Matchmaking Features
+## Key Features
 
-- **Submit Match Request**: Players submit matchmaking requests and receive a unique request ID
-- **Get Match Status**: Query the status of a match request (Pending, Matched, Expired, Cancelled)
-- **Cancel Match Request**: Cancel a pending match request before it's matched
-- **Automatic Matching**: Background service automatically matches players based on configured match size
-- **EOS Session Creation**: Matched players are placed into EOS sessions with session details returned
-- **Request Timeout**: Requests automatically expire after a configurable timeout period
-
-### API Endpoints
-
-The matchmaking service exposes three gRPC endpoints (also available as REST via gRPC Gateway):
-
-1. **SubmitMatchRequest**
-   - Submits a new matchmaking request for the authenticated user
-   - Returns a unique request ID for tracking
-   - Rejects duplicate requests from the same user
-
-2. **GetMatchStatus**
-   - Queries the status of a match request by request ID
-   - Returns status (Pending, Matched, Expired, Cancelled)
-   - Includes session details when matched
-
-3. **CancelMatchRequest**
-   - Cancels a pending match request
-   - Only pending requests can be cancelled
-   - Returns confirmation of cancellation
-
-## Project Structure
-
-The matchmaking service is implemented with the following key components:
-
-```shell
-.
-├── src
-│   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server
-│   │   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server.csproj
-│   │   ├── Classes                           # Infrastructure & cross-cutting concerns
-│   │   │   ├── AuthorizationInterceptor.cs   # gRPC server interceptor for access token authentication and authorization
-│   │   │   ├── EOSConfig.cs                  # EOS SDK configuration
-│   │   │   ├── EOSSDKService.cs              # EOS SDK initialization and lifecycle management
-│   │   │   ├── MatchmakingExceptions.cs      # Custom exception types for matchmaking
-│   │   │   └── ...
-│   │   ├── Model                             # Domain data structures
-│   │   │   ├── Match.cs                      # Match data model
-│   │   │   ├── MatchRequest.cs               # Match request data model with status enum
-│   │   │   └── SessionInfo.cs                # Session information data model
-│   │   ├── Program.cs                        # App starts here, dependency injection setup
-│   │   ├── Protos
-│   │   │   ├── matchmaking.proto             # gRPC matchmaking service definition
-│   │   │   └── ...
-│   │   ├── Services                          # Business logic & application services
-│   │   │   ├── MatchMaker.cs                 # Background service for automatic matching
-│   │   │   ├── MatchmakingService.cs         # gRPC service implementation
-│   │   │   ├── MatchPool.cs                  # Thread-safe in-memory match request storage
-│   │   │   ├── Notifier.cs                   # Match notification interface and implementation
-│   │   │   └── SessionCreator.cs             # EOS session creation interface and implementation
-│   ├── AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
-│   │   └── ...                               # Unit tests for all components (71 tests)
-│   └── extend-service-extension-server.sln
-└── ...
-```
-
-### Code Organization
-
-- **Model/** - Domain entities and data structures (Match, MatchRequest)
-- **Services/** - Business logic and orchestration (MatchMaker, MatchPool, MatchmakingService)
-- **Classes/** - Infrastructure, middleware, and SDK integrations (Interceptors, EOS SDK wrapper)
-
-## Configuration
-
-The matchmaking service can be configured via `appsettings.json` or environment variables:
-
-### MatchMaker Configuration
-
-```json
-{
-  "MatchMaker": {
-    "MatchSize": 2,                    // Number of players per match
-    "TickIntervalSeconds": 1,          // How often the matcher runs (in seconds)
-    "RequestTimeoutSeconds": 60        // How long before requests expire (in seconds)
-  }
-}
-```
-
-### EOS Configuration
-
-```json
-{
-  "EOS": {
-    "ProductId": "your-product-id",
-    "SandboxId": "your-sandbox-id",
-    "DeploymentId": "your-deployment-id",
-    "ClientId": "your-client-id",
-    "ClientSecret": "your-client-secret"
-  }
-}
-```
-
-## Session Provider Modes
-
-This matchmaking service supports two session provider modes to accommodate different deployment patterns:
-
-- **Create Mode (Default)**: Matchmaker creates new EOS sessions for each match. Suitable for P2P gameplay or integration with dedicated server providers.
-- **Find Mode**: Matchmaker finds existing available EOS sessions created by game servers. Suitable for player-hosted or pre-allocated dedicated servers.
-
-**Configuration:**
-```json
-{
-  "SessionProvider": {
-    "Mode": "create"  // or "find"
-  }
-}
-```
-
-> See [Architecture Guide](docs/architecture.md#session-provider-modes) for detailed information on both modes, use cases, and extensibility examples.
+- **Automatic Matching** - Background service matches players based on configurable match size
+- **EOS Session Creation** - Creates EOS sessions for matched players with session details
+- **Request Management** - Submit, query status, and cancel match requests
+- **Request Timeout** - Automatic expiration after configurable timeout period
+- **Built-in Observability** - Metrics, distributed tracing, and structured logging
+- **Extensible Design** - Clear extension points for custom notification and session logic
+- **Production Ready** - Thread-safe, error handling, authorization, and comprehensive tests
 
 ## Quick Start
 
@@ -159,27 +46,27 @@ This matchmaking service supports two session provider modes to accommodate diff
 
 > See [Setup Guide](docs/setup.md) for detailed prerequisites and installation instructions.
 
-### Setup
+### Setup Steps
 
 1. **Create environment file:**
    ```bash
    cp .env.template .env
    ```
 
-2. **Configure environment variables** in `.env`:
+2. **Configure credentials** in `.env`:
    ```bash
+   # AccelByte Configuration
    AB_BASE_URL=https://test.accelbyte.io
-   AB_CLIENT_ID=xxxxxxxxxx
-   AB_CLIENT_SECRET=xxxxxxxxxx
-   AB_NAMESPACE=xxxxxxxxxx
-   PLUGIN_GRPC_SERVER_AUTH_ENABLED=true
-   BASE_PATH=/matchmaking
+   AB_CLIENT_ID=your-client-id
+   AB_CLIENT_SECRET=your-client-secret
+   AB_NAMESPACE=your-namespace
    
-   EOS_PRODUCT_ID=xxxxxxxxxx
-   EOS_SANDBOX_ID=xxxxxxxxxx
-   EOS_DEPLOYMENT_ID=xxxxxxxxxx
-   EOS_CLIENT_ID=xxxxxxxxxx
-   EOS_CLIENT_SECRET=xxxxxxxxxx
+   # EOS Configuration
+   EOS_PRODUCT_ID=your-product-id
+   EOS_SANDBOX_ID=your-sandbox-id
+   EOS_DEPLOYMENT_ID=your-deployment-id
+   EOS_CLIENT_ID=your-eos-client-id
+   EOS_CLIENT_SECRET=your-eos-client-secret
    ```
 
 3. **Build and run:**
@@ -187,16 +74,28 @@ This matchmaking service supports two session provider modes to accommodate diff
    docker compose up --build
    ```
 
-4. **Access Swagger UI:**
-   ```
-   http://localhost:8000/matchmaking/apidocs/
-   ```
+4. **Access the service:**
+   - **Swagger UI**: `http://localhost:8000/matchmaking/apidocs/`
+   - **REST API**: `http://localhost:8000/matchmaking`
+   - **Metrics**: `http://localhost:8080/metrics`
 
-> See [Setup Guide](docs/setup.md) for detailed configuration options and deployment instructions.
+> See [Setup Guide](docs/setup.md) for complete configuration options and deployment instructions.
+
+## API Endpoints
+
+The service exposes three gRPC endpoints (also available as REST via gRPC Gateway):
+
+| Endpoint | Purpose | Returns |
+|----------|---------|---------|
+| **SubmitMatchRequest** | Submit new matchmaking request | Request ID for tracking |
+| **GetMatchStatus** | Query request status | Status (Pending/Matched/Expired/Cancelled) + session details |
+| **CancelMatchRequest** | Cancel pending request | Confirmation of cancellation |
+
+> See [Testing Guide](docs/testing_guide.md) for detailed API usage and testing scenarios.
 
 ## Testing
 
-### Running Unit Tests
+### Run Unit Tests
 
 ```bash
 dotnet test src/extend-service-extension-server.sln
@@ -205,47 +104,63 @@ dotnet test src/extend-service-extension-server.sln
 ### Manual Testing
 
 1. **Get access token** using [demo/get-access-token.postman_collection.json](demo/get-access-token.postman_collection.json)
-2. **Test matchmaking endpoints** using [demo/matchmaking-service-demo.postman_collection.json](demo/matchmaking-service-demo.postman_collection.json)
+2. **Test endpoints** using [demo/matchmaking-service-demo.postman_collection.json](demo/matchmaking-service-demo.postman_collection.json)
 3. **Or use Swagger UI** at `http://localhost:8000/matchmaking/apidocs/`
-4. **Authorize** with `Bearer <access_token>`
-5. **Test scenarios:**
-   - Submit match requests from multiple users
-   - Check match status (should show MATCHED when enough players join)
-   - Cancel pending requests
-   - Test request timeout (wait 60 seconds)
 
-> See [Testing Guide](docs/testing_guide.md) for comprehensive testing instructions and scenarios.
+> See [Testing Guide](docs/testing_guide.md) for comprehensive testing instructions.
 
-## Deployment
+## Configuration
 
-1. **Create Extend Service Extension app** in AGS Admin Portal
-2. **Configure secrets** (AB_CLIENT_ID, AB_CLIENT_SECRET, EOS credentials)
-3. **Build and push image:**
-   ```bash
-   extend-helper-cli image-upload --login --namespace <namespace> --app <app-name> --image-tag v0.0.1
-   ```
-4. **Deploy image** from Admin Portal
+### Basic Configuration
 
-> See [Setup Guide](docs/setup.md) for detailed deployment instructions.
+The service requires EOS credentials and optionally accepts matchmaking tuning parameters:
+
+```bash
+# Required: EOS Credentials
+EOS_PRODUCT_ID=your-product-id
+EOS_SANDBOX_ID=your-sandbox-id
+EOS_DEPLOYMENT_ID=your-deployment-id
+EOS_CLIENT_ID=your-eos-client-id
+EOS_CLIENT_SECRET=your-eos-client-secret
+
+# Optional: Matchmaking Tuning (defaults shown)
+MATCHMAKER__MATCHSIZE=2                    # Players per match
+MATCHMAKER__TICKINTERVALSECONDS=1          # Matching frequency
+MATCHMAKER__REQUESTTIMEOUTSECONDS=60       # Request expiration time
+```
+
+### Session Provider Modes
+
+The service supports two modes for session management:
+
+- **Create Mode (Default)**: Matchmaker creates new EOS sessions for each match
+- **Find Mode**: Matchmaker finds existing available EOS sessions created by game servers
+
+```bash
+SESSIONPROVIDER__MODE=create  # or "find"
+```
+
+> See [Architecture Guide](docs/architecture.md#session-provider-modes) for detailed mode explanations and use cases.
+
+> See [Setup Guide](docs/setup.md) for complete configuration reference.
 
 ## Architecture
 
 ### Core Components
 
-- **MatchmakingService**: gRPC service handling client requests
-- **MatchPool**: Thread-safe in-memory storage for pending match requests
-- **MatchMaker**: Background service that periodically creates matches from the pool
-- **SessionCreator**: Creates EOS sessions for matched players
-- **Notifier**: Logs match events (extensible for webhooks/notifications)
+- **MatchmakingService** - gRPC service handling client requests
+- **MatchPool** - Thread-safe in-memory storage for pending requests
+- **MatchMaker** - Background service that periodically creates matches
+- **SessionCreator** - Creates or finds EOS sessions for matched players
+- **PlayerNotifier** - Extensible notification mechanism for match events
 
 ### Matching Algorithm
 
-The matcher uses a simple **FIFO (First-In-First-Out)** algorithm:
-1. Every tick interval (default: 1 second), the matcher checks the pool
-2. Takes the oldest N requests (where N = MatchSize)
-3. Creates an EOS session for those players
-4. Updates request statuses to "MATCHED" with session details
-5. If session creation fails, requests are returned to the pool
+The matcher uses a **FIFO (First-In-First-Out)** algorithm:
+1. Every tick interval, check the pool for pending requests
+2. Take the oldest N requests (where N = MatchSize)
+3. Create an EOS session for those players
+4. Update request statuses to "MATCHED" with session details
 
 ### Request Lifecycle
 
@@ -257,38 +172,77 @@ Submit → PENDING → (matched) → MATCHED
               (cancel) → CANCELLED
 ```
 
-> See [Architecture Guide](docs/architecture.md) for detailed technical architecture and design decisions.
+> See [Architecture Guide](docs/architecture.md) for detailed technical architecture, design decisions, and extensibility patterns.
 
-### Notifier Extensibility
+## Extensibility
 
-The `INotifier` interface provides an extensibility point for notifying players when matches are found. The current implementation (`LoggingNotifier`) logs match events to the console.
+The service provides clear extension points for customization:
 
-**Custom Implementation Example:**
+### Application-Level Extension Points
 
-```csharp
-public class WebhookNotifier : INotifier
-{
-    private readonly HttpClient _httpClient;
-    private readonly string _webhookUrl;
+- **IPlayerNotifier** - Custom player notification (webhooks, push notifications, message queues)
+- **ISessionCreator** - Custom session logic (create vs find modes)
+- **ISessionOwnerNotifier** - Notify game servers when sessions are claimed (find mode only)
 
-    public async Task NotifyMatchAsync(SessionInfo sessionInfo)
-    {
-        var payload = new {
-            session_id = sessionInfo.SessionId,
-            player_ids = sessionInfo.UserIds,
-            timestamp = DateTime.UtcNow
-        };
-        
-        await _httpClient.PostAsJsonAsync(_webhookUrl, payload);
-    }
-}
+### Infrastructure-Level Extension Points
+
+- **IMatchPool** - Distributed storage for multi-instance deployments (Redis, database)
+- **ICompletedRequestStore** - Persistent storage for durability (Redis, database)
+- **IClaimedSessionsCache** - Distributed cache for multi-instance find mode (Redis)
+
+### Core Customization
+
+The **MatchMaker** class can be modified directly to implement custom matching logic:
+- Skill-based matching (ELO/MMR)
+- Region-based matching
+- Team balancing algorithms
+- Metadata filtering
+
+> See [Architecture Guide](docs/architecture.md) for complete extensibility documentation with working code examples.
+
+## Deployment
+
+### Deploy to AccelByte
+
+1. **Create Extend Service Extension app** in AGS Admin Portal
+2. **Configure secrets** (AB_CLIENT_ID, AB_CLIENT_SECRET, EOS credentials)
+3. **Build and push image:**
+   ```bash
+   extend-helper-cli image-upload --login --namespace <namespace> --app <app-name> --image-tag v0.0.1
+   ```
+4. **Deploy image** from Admin Portal
+
+> See [Setup Guide](docs/setup.md) for detailed deployment instructions and multi-instance considerations.
+
+## Project Structure
+
+```
+src/
+├── AccelByte.Extend.SimpleEOSMatchmaking.Server/
+│   ├── Classes/          # Infrastructure & cross-cutting concerns
+│   ├── Model/            # Domain data structures
+│   ├── Services/         # Business logic & application services
+│   ├── Protos/           # gRPC service definitions
+│   └── Program.cs        # Dependency injection setup
+├── AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests/
+│   └── ...               # Unit tests (71 tests)
+└── extend-service-extension-server.sln
 ```
 
-To use a custom notifier, register it in `Program.cs`:
-```csharp
-builder.Services.AddSingleton<INotifier, WebhookNotifier>();
-```
+## Observability
 
-> See [Architecture Guide](docs/architecture.md) for more extensibility examples and patterns.
+The service includes production-ready observability:
 
+- **Metrics** - Prometheus metrics at `:8080/metrics`
+- **Tracing** - OpenTelemetry distributed tracing (Zipkin export)
+- **Logging** - Structured logging with Microsoft.Extensions.Logging
 
+> See [Operations Guide](docs/operations.md) for observability setup and monitoring.
+
+## License
+
+See [LICENSE](LICENSE) file for details.
+
+## Support
+
+For issues, questions, or contributions, please refer to the AccelByte documentation or contact support.
