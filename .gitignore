@@ -462,3 +462,4 @@ gateway/grpc_gateway
 # Generated proto artifacts
 gateway/pkg/pb/
 gateway/apidocs/*.swagger.json
+extend-helper-cli*
