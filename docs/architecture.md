@@ -1219,7 +1219,6 @@ For high availability and horizontal scaling, deploy multiple matchmaker instanc
 - Multiple matchmaker instances behind a load balancer
 - Distributed storage (Redis, database) for shared state
 - External dependencies required
-- More complex to deploy and operate
 - Suitable for large-scale production deployments
 
 **Advantages:**
@@ -1229,10 +1228,10 @@ For high availability and horizontal scaling, deploy multiple matchmaker instanc
 - ✅ Better performance under high load
 
 **Limitations:**
-- ❌ More complex setup and operation
-- ❌ Higher infrastructure costs (Redis, database, load balancer)
+- ❌ More complex to reason about
+- ❌ Higher infrastructure costs (Redis, database)
 - ❌ Slightly higher latency (network calls to external storage)
-- ❌ Requires distributed systems expertise
+- ❌ Requires distributed systems understanding
 
 **When to Use:**
 - Large-scale games (> 1000 concurrent players)
@@ -1277,7 +1276,7 @@ Understanding the trade-offs between in-memory and distributed storage helps you
 #### Redis (Distributed Cache)
 
 **Pros:**
-- Fast (low network latency)
+- Relatively Fast access
 - Shared across multiple instances
 - Built-in TTL for automatic expiration
 - High availability with Redis Cluster
