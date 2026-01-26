@@ -4,7 +4,7 @@
 
 ---
 
-> **⚠️ Note on Example Code:** The custom implementation examples in this document (such as UDP notifiers, Redis implementations, etc.) were generated with AI assistance and have not been tested or verified to work. They are provided as architectural guidance and starting points. You should test and adapt them for your specific environment and requirements.
+> **⚠️ Note on Example Code:** The custom implementation examples in this document (such as UDP notifiers, Key-Value Store implementations, etc.) were generated with AI assistance and have not been tested or verified to work. They are provided as architectural guidance and starting points. You should test and adapt them for your specific environment and requirements.
 
 ---
 
@@ -774,11 +774,11 @@ public interface IMatchPool
 ```
 
 **Custom Implementation Scenarios:**
-- **Redis:** Distributed cache for multi-instance deployments
+- **AccelByte Managed Key-Value Store:** Distributed cache for multi-instance deployments (Valkey/Redis-compatible)
 - **Database:** SQL Server or PostgreSQL for durability and querying
 - **Message Queue:** RabbitMQ or AWS SQS for high-throughput scenarios
 
-**See:** [Redis-based MatchPool example](#redis-based-matchpool-example) below
+**See:** [Key-Value Store-based MatchPool example](#key-value-store-based-matchpool-example) below
 
 #### ICompletedRequestStore
 
@@ -808,7 +808,7 @@ public interface ICompletedRequestStore
 ```
 
 **Custom Implementation Scenarios:**
-- **Redis:** Distributed cache with TTL for multi-instance deployments
+- **AccelByte Managed Key-Value Store:** Distributed cache with TTL for multi-instance deployments (Valkey/Redis-compatible)
 - **Database:** SQL Server or PostgreSQL for long-term retention and querying
 - **Time-series database:** InfluxDB or TimescaleDB for analytics
 
@@ -839,7 +839,7 @@ public interface IClaimedSessionsCache
 ```
 
 **Custom Implementation Scenarios:**
-- **Redis:** Distributed cache with TTL for multi-instance deployments
+- **AccelByte Managed Key-Value Store:** Distributed cache with TTL for multi-instance deployments (Valkey/Redis-compatible)
 - **Distributed lock service:** Consul or etcd for coordination
 
 **Note:** Only used in find mode. Not needed for create mode.
@@ -1175,7 +1175,7 @@ The default configuration uses in-memory storage and is designed for single-inst
 **Characteristics:**
 - One matchmaker instance handles all requests
 - In-memory storage for match pool and completed requests
-- No external dependencies (Redis, database)
+- No external dependencies (Key-Value Store, database)
 - Simple to deploy and operate
 - Suitable for development, testing, and moderate production loads
 
@@ -1217,7 +1217,7 @@ For high availability and horizontal scaling, deploy multiple matchmaker instanc
 
 **Characteristics:**
 - Multiple matchmaker instances behind a load balancer
-- Distributed storage (Redis, database) for shared state
+- Distributed storage (AccelByte Managed Key-Value Store, database) for shared state
 - External dependencies required
 - Suitable for large-scale production deployments
 
@@ -1229,7 +1229,7 @@ For high availability and horizontal scaling, deploy multiple matchmaker instanc
 
 **Limitations:**
 - ❌ More complex to reason about
-- ❌ Higher infrastructure costs (Redis, database)
+- ❌ Higher infrastructure costs (Key-Value Store, database)
 - ❌ Slightly higher latency (network calls to external storage)
 - ❌ Requires distributed systems understanding
 
@@ -1243,9 +1243,9 @@ For high availability and horizontal scaling, deploy multiple matchmaker instanc
 
 To deploy multiple instances, you must implement distributed versions of:
 
-1. **IMatchPool** - Use Redis or database for shared match pool
-2. **ICompletedRequestStore** - Use Redis or database for shared completed requests
-3. **IClaimedSessionsCache** (find mode only) - Use Redis for shared claimed sessions cache
+1. **IMatchPool** - Use AccelByte Managed Key-Value Store or database for shared match pool
+2. **ICompletedRequestStore** - Use AccelByte Managed Key-Value Store or database for shared completed requests
+3. **IClaimedSessionsCache** (find mode only) - Use AccelByte Managed Key-Value Store for shared claimed sessions cache
 
 **See:** [Complete implementation examples](#complete-working-examples) below
 
@@ -1273,26 +1273,27 @@ Understanding the trade-offs between in-memory and distributed storage helps you
 - Stateless or ephemeral data
 - Cost-sensitive deployments
 
-#### Redis (Distributed Cache)
+#### AccelByte Managed Key-Value Store (Distributed Cache)
 
 **Pros:**
-- Relatively Fast access
+- Fully managed by AccelByte (no infrastructure to maintain)
 - Shared across multiple instances
 - Built-in TTL for automatic expiration
-- High availability with Redis Cluster
+- High availability with Valkey (Redis-compatible)
+- Integrated with AccelByte Extend platform
 - Relatively simple to operate
+- Fast access with low latency
 
 **Cons:**
-- Requires Redis infrastructure
-- Data lost if Redis crashes (unless using persistence)
 - Additional cost
 - Network latency vs in-memory
 
 **Best For:**
-- Multi-instance deployments
+- Multi-instance deployments on AccelByte Extend
 - Caching with TTL
 - High-performance distributed state
 - When eventual consistency is acceptable
+- Teams already using AccelByte platform
 
 **Use Cases:**
 - IMatchPool (shared pending requests)
@@ -1309,7 +1310,7 @@ Understanding the trade-offs between in-memory and distributed storage helps you
 - Backup and recovery
 
 **Cons:**
-- Slower than Redis or in-memory
+- Slower than Key-Value Store or in-memory
 - More complex to operate
 - Higher infrastructure costs
 - Requires schema management (SQL)
@@ -1331,9 +1332,9 @@ Use this decision tree to choose the right deployment approach:
 ```
 Do you need high availability (zero downtime)?
 ├─ YES → Multi-instance deployment
-│   ├─ Implement distributed IMatchPool (Redis)
-│   ├─ Implement distributed ICompletedRequestStore (Redis or database)
-│   └─ If using find mode: Implement distributed IClaimedSessionsCache (Redis)
+│   ├─ Implement distributed IMatchPool (AccelByte Managed Key-Value Store)
+│   ├─ Implement distributed ICompletedRequestStore (AccelByte Managed Key-Value Store or database)
+│   └─ If using find mode: Implement distributed IClaimedSessionsCache (AccelByte Managed Key-Value Store)
 │
 └─ NO → Can you tolerate brief downtime during deployments?
     ├─ YES → Single-instance deployment (default)
@@ -1375,7 +1376,7 @@ When customizing infrastructure components, follow these guidelines:
 - Acceptable to lose pending requests on restart
 
 **Implementation options:**
-- Redis: Best for multi-instance, high performance
+- AccelByte Managed Key-Value Store: Best for multi-instance on AccelByte Extend, high performance
 - Database: Best for durability and querying
 - Message Queue: Best for very high throughput
 
@@ -1395,7 +1396,7 @@ When customizing infrastructure components, follow these guidelines:
 - Acceptable to lose history on restart
 
 **Implementation options:**
-- Redis: Best for multi-instance, short retention (< 24 hours)
+- AccelByte Managed Key-Value Store: Best for multi-instance, short retention (< 24 hours)
 - Database: Best for long retention, analytics, compliance
 - Time-series database: Best for analytics and metrics
 
@@ -1411,7 +1412,7 @@ When customizing infrastructure components, follow these guidelines:
 - Low concurrency in find mode
 
 **Implementation options:**
-- Redis: Best choice for distributed cache with TTL
+- AccelByte Managed Key-Value Store: Best choice for distributed cache with TTL
 - Distributed lock service: Consul, etcd for coordination
 
 ### Monitoring and Observability
@@ -1426,7 +1427,7 @@ Regardless of deployment type, ensure proper monitoring:
 - Session creation success/failure rate (counter)
 
 **Distributed Deployment Additional Metrics:**
-- Redis connection pool usage
+- Key-Value Store connection pool usage
 - Database query latency
 - Cache hit/miss rates
 - Cross-instance coordination latency
@@ -1868,15 +1869,16 @@ public class MatchNotification
 }
 ```
 
-### Redis-Based MatchPool Example
+### Key-Value Store-Based MatchPool Example
 
-This example shows how to implement a distributed match pool using Redis for multi-instance deployments.
+This example shows how to implement a distributed match pool using AccelByte's Managed Key-Value Store for multi-instance deployments.
 
 **Use Case:** Deploy multiple matchmaker instances that share the same match pool.
 
 **Prerequisites:**
-- Install `StackExchange.Redis` NuGet package
-- Redis server running and accessible
+- Install `StackExchange.Redis` NuGet package (Valkey is Redis-compatible)
+- AccelByte Managed Key-Value Store configured and accessible
+- Connection string from AccelByte Admin Portal
 
 **Implementation:**
 
@@ -1892,18 +1894,19 @@ using StackExchange.Redis;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// Redis-based match pool for multi-instance deployments
+    /// Key-Value Store-based match pool for multi-instance deployments
+    /// Uses AccelByte Managed Key-Value Store (Valkey/Redis-compatible)
     /// </summary>
-    public class RedisMatchPool : IMatchPool
+    public class KeyValueStoreMatchPool : IMatchPool
     {
         private readonly IConnectionMultiplexer _redis;
-        private readonly ILogger<RedisMatchPool> _logger;
+        private readonly ILogger<KeyValueStoreMatchPool> _logger;
         private const string PoolKey = "matchmaking:pool";
         private const string UserIndexKey = "matchmaking:user_index";
 
-        public RedisMatchPool(
+        public KeyValueStoreMatchPool(
             IConnectionMultiplexer redis,
-            ILogger<RedisMatchPool> logger)
+            ILogger<KeyValueStoreMatchPool> logger)
         {
             _redis = redis ?? throw new ArgumentNullException(nameof(redis));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -1932,7 +1935,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             transaction.StringSetAsync($"{UserIndexKey}:{request.UserId}", request.RequestId);
             transaction.Execute();
 
-            _logger.LogDebug("Added request {RequestId} to Redis pool", request.RequestId);
+            _logger.LogDebug("Added request {RequestId} to Key-Value Store pool", request.RequestId);
         }
 
         public MatchRequest? Remove(string requestId)
@@ -1951,7 +1954,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     transaction.KeyDeleteAsync($"{UserIndexKey}:{request.UserId}");
                     transaction.Execute();
 
-                    _logger.LogDebug("Removed request {RequestId} from Redis pool", requestId);
+                    _logger.LogDebug("Removed request {RequestId} from Key-Value Store pool", requestId);
                     return request;
                 }
             }
@@ -2031,7 +2034,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 transaction.Execute();
 
                 _logger.LogInformation(
-                    "Removed {Count} expired requests from Redis pool",
+                    "Removed {Count} expired requests from Key-Value Store pool",
                     expiredRequests.Count);
             }
 
@@ -2056,25 +2059,27 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 **Registration in Program.cs:**
 
 ```csharp
-// Configure Redis connection
+// Configure Key-Value Store connection (Valkey/Redis-compatible)
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
-    var redisConnectionString = configuration["Redis:ConnectionString"] 
-        ?? "localhost:6379";
-    return ConnectionMultiplexer.Connect(redisConnectionString);
+    var connectionString = configuration["AccelByte:KeyValueStore:ConnectionString"] 
+        ?? throw new InvalidOperationException("Key-Value Store connection string not configured");
+    return ConnectionMultiplexer.Connect(connectionString);
 });
 
-// Register Redis-based match pool
-builder.Services.AddSingleton<IMatchPool, RedisMatchPool>();
+// Register Key-Value Store-based match pool
+builder.Services.AddSingleton<IMatchPool, KeyValueStoreMatchPool>();
 ```
 
 **Configuration (appsettings.json):**
 
 ```json
 {
-  "Redis": {
-    "ConnectionString": "your-redis-server:6379,password=your-password"
+  "AccelByte": {
+    "KeyValueStore": {
+      "ConnectionString": "your-keyvaluestore-endpoint:6379,password=your-password"
+    }
   }
 }
 ```
