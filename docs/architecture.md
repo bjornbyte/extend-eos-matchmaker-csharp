@@ -664,10 +664,7 @@ These interfaces define how the matchmaking service integrates with your game-sp
 **Purpose:** Notifies players when matches are found.
 
 **When to Implement:**
-- You need to send push notifications to mobile devices
-- You want to notify players via webhooks
-- You need to integrate with a message queue system
-- You want to send in-game notifications through your lobby service
+- You want to avoid game clients needing to poll for the result of their match request.
 
 **Default Implementation:** `LoggingPlayerNotifier` - Logs match events to console (suitable for development/testing only)
 
