@@ -413,13 +413,8 @@ var match = new Match(requestsForMatch);
 var server = await _serverProvider.RequestServerAsync();
 
 // Create session with server info
+match.serverInfo = server // assumes match object has been updated to include server info field
 var sessionInfo = await _sessionCreator.GetSessionAsync(match);
-
-// Add server connection info to session metadata
-await _eosService.UpdateSessionAttribute(
-    sessionInfo.SessionId, 
-    "server_address", 
-    server.ConnectionString);
 
 _logger.LogInformation(
     "Match created with dedicated server: MatchId={MatchId}, ServerId={ServerId}",
@@ -455,7 +450,7 @@ This extension is not included in the sample but demonstrates how the architectu
 - Store requests in MatchPool
 - Provide status queries for pending/matched requests
 - Handle cancellation of pending requests
-- Extract user ID from authorization context
+- Extract user ID from context
 
 **Key Methods:**
 - `SubmitMatchRequest()` - Creates new match request, returns request ID
@@ -505,7 +500,6 @@ This extension is not included in the sample but demonstrates how the architectu
 **Purpose:** Background service that periodically creates matches from the pool.
 
 **Responsibilities:**
-- Run as hosted service (IHostedService)
 - Periodically check pool for matching opportunities
 - Remove expired requests
 - Create matches when enough players available
