@@ -1349,15 +1349,6 @@ Do you need high availability (zero downtime)?
             └─ Use default in-memory implementations
 ```
 
-**Additional Considerations:**
-
-- **Concurrent players:** < 1000 → Single-instance, > 1000 → Multi-instance
-- **Geographic distribution:** Multiple regions → Multi-instance per region
-- **Budget:** Limited → Single-instance, Flexible → Multi-instance
-- **Operational complexity:** Limited expertise → Single-instance, Experienced team → Multi-instance
-- **Data retention:** Short-term → In-memory, Long-term → Database
-- **Compliance:** Audit requirements → Database with retention
-
 ### Infrastructure Customization Guidelines
 
 When customizing infrastructure components, follow these guidelines:
