@@ -438,19 +438,6 @@ Verify:
 - Client credentials are valid
 - Namespace exists
 
-### Authorization Errors
-
-**Error: `Unauthenticated` or `PermissionDenied`**
-
-1. Verify token is valid:
-   ```bash
-   curl -H "Authorization: Bearer <token>" \
-     https://test.accelbyte.io/iam/v3/oauth/verify
-   ```
-
-2. Check client permissions in Admin Portal
-3. Ensure `PLUGIN_GRPC_SERVER_AUTH_ENABLED=true`
-
 ### Session Creation Fails
 
 **Error: `Failed to create EOS session`**
