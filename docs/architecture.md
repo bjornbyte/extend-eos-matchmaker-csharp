@@ -98,7 +98,7 @@ Players → MatchMaker → Create Match → EOSSessionCreator → New EOS Sessio
 
 **Use Cases:**
 - **Peer-to-peer gameplay**: Matched players connect directly to each other
-- **Dedicated server provider integration**: Matchmaker creates session, then allocates server from provider
+- **Dedicated server provider integration**: Matchmaker allocates server from provider, then creates session 
 
 **Flow:**
 1. Players submit match requests
@@ -139,7 +139,7 @@ Players → MatchMaker → Create Match → EOSSessionFinder → Find & Claim Se
 4. EOSSessionFinder searches for available sessions
 5. Finder claims a session (adds to local cache)
 6. Finder notifies session owner with match details
-7. Session owner updates session to "started" state in EOS
+7. Session owner updates session state in EOS as needed.
 8. Players join the claimed session
 
 **Configuration:**
@@ -171,7 +171,7 @@ In "find" mode, the session finder uses a local claimed sessions cache to preven
 - Thread-safe in-memory cache (`ConcurrentDictionary`)
 - Tracks recently claimed sessions with timestamps
 - Automatic expiration after configured time (default: 5 minutes)
-- Prevents race conditions when multiple matches are created simultaneously
+- Prevents race conditions when multiple matches are created simultaneously, or before the session owner marks the session started.
 
 **Claiming Process:**
 1. Search for available sessions (0 players, not started, not in cache)
