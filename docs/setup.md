@@ -32,15 +32,7 @@ You need an AccelByte Gaming Services (AGS) account with:
 
 1. **AGS Environment** - Test or production environment
 2. **Namespace** - Your game namespace
-3. **OAuth Client** - Confidential client with required permissions
-
-#### Required Permissions
-
-**For AGS Private Cloud:**
-- `ADMIN:NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]`
-
-**For AGS Shared Cloud:**
-- Matchmaking (Create, Read, Delete)
+3. **OAuth Client** - Confidential client
 
 ### Epic Online Services (EOS) Account
 

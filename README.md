@@ -94,9 +94,10 @@ The service exposes three gRPC endpoints (also available as REST via gRPC Gatewa
 
 ## Testing
 
-### Run Unit Tests
+### Run Automated Tests
 
 ```bash
+docker compose up --build
 dotnet test src/extend-service-extension-server.sln
 ```
 

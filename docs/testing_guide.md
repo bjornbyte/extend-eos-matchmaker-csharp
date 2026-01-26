@@ -24,7 +24,6 @@ You need the following AccelByte resources:
 - **Client Credentials** (for authentication)
   - `client_id` - OAuth client ID
   - `client_secret` - OAuth client secret
-  - Required permissions: `NAMESPACE:{namespace}:MATCHMAKING [CREATE, READ, DELETE]`
 
 - **Test User Account** (if using password grant)
   - `user_email` - Email of test user
@@ -99,7 +98,7 @@ You need the following AccelByte resources:
 - **Method:** POST
 - **Endpoint:** `http://localhost:8000/matchmaking/v1/request`
 - **Auth:** Bearer Token (access_token from Step 1)
-- **Headers:**
+- **Headers:** Use one of the following:
   - `Authorization: Bearer <access_token>`
   - `user-id: test-user-1` (for testing without token parsing)
 - **Body:**
@@ -274,98 +273,6 @@ Navigate to `http://localhost:8000/matchmaking/apidocs/`
    }
    ```
 
----
-
-## Error Scenario Testing
-
-### Test 1: Duplicate Request
-
-**Steps:**
-1. Submit match request for user-1
-2. Submit another match request for user-1 (without cancelling first)
-
-**Expected:** `FailedPrecondition` error
-```json
-{
-  "code": 9,
-  "message": "User already has a pending match request: {request_id}"
-}
-```
-
-### Test 2: Request Not Found
-
-**Steps:**
-1. Query status with non-existent request ID
-
-**Expected:** `NotFound` error
-```json
-{
-  "code": 5,
-  "message": "Match request not found"
-}
-```
-
-### Test 3: Cancel Matched Request
-
-**Steps:**
-1. Submit request and wait for match
-2. Try to cancel the matched request
-
-**Expected:** `FailedPrecondition` error
-```json
-{
-  "code": 9,
-  "message": "Cannot cancel request with status: MATCHED"
-}
-```
-
-### Test 4: Request Expiration
-
-**Steps:**
-1. Submit request
-2. Wait 60+ seconds (default timeout)
-3. Check status
-
-**Expected:** Request removed from pool (NotFound) or status EXPIRED
-
----
-
-## Sample Test Data
-
-### Sample Match Request 1
-
-```json
-{
-  "metadata": {
-    "region": "us-west",
-    "skill_level": "beginner",
-    "game_mode": "casual"
-  }
-}
-```
-
-### Sample Match Request 2
-
-```json
-{
-  "metadata": {
-    "region": "eu-central",
-    "skill_level": "advanced",
-    "game_mode": "ranked"
-  }
-}
-```
-
-### Sample Match Request 3 (Minimal)
-
-```json
-{
-  "metadata": {}
-}
-```
-
----
-
 ## Troubleshooting
 
 ### Service Not Running
@@ -408,7 +315,7 @@ Error: connect ECONNREFUSED 127.0.0.1:8000
 ```
 
 **Solution:**
-- Verify OAuth client has `NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]` permissions
+- Verify test user has `NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]` permissions
 - Check namespace matches your namespace
 - Regenerate access token after adding permissions
 
