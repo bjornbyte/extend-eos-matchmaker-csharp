@@ -731,7 +731,9 @@ public interface ISessionOwnerNotifier
 ```
 
 **Example Mechanisms:**
-- **HTTP POST:** Game server exposes webhook endpoint
+- **UDP Packets:** Send datagrams to game server (recommended for Unreal Engine - native socket support)
+- **TCP Sockets:** Persistent connection with guaranteed delivery
+- **HTTP POST:** Game server exposes webhook endpoint (requires third-party library in Unreal)
 - **gRPC:** Call game server's gRPC service
 - **Message Queue:** Publish to RabbitMQ, AWS SQS, Azure Service Bus
 - **WebSocket:** Send message over persistent connection
