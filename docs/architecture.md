@@ -4,6 +4,10 @@
 
 ---
 
+> **⚠️ Note on Example Code:** The custom implementation examples in this document (such as UDP notifiers, Redis implementations, etc.) were generated with AI assistance and have not been tested or verified to work. They are provided as architectural guidance and starting points. You should test and adapt them for your specific environment and requirements.
+
+---
+
 This guide explains the technical architecture, design decisions, and key concepts of the Simple EOS Matchmaking Service Extension.
 
 ## Architecture Overview
