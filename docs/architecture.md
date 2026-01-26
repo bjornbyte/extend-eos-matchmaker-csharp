@@ -221,13 +221,19 @@ The notification includes complete match information:
 
 **Custom Implementation Example:**
 
-Developers should implement their own notification mechanism based on their infrastructure:
+Developers should implement their own notification mechanism based on their infrastructure. This example uses UDP, which is ideal for Unreal Engine game servers since they have native UDP socket support:
 
 ```csharp
-public class HttpSessionOwnerNotifier : ISessionOwnerNotifier
+public class UdpSessionOwnerNotifier : ISessionOwnerNotifier, IDisposable
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<HttpSessionOwnerNotifier> _logger;
+    private readonly UdpClient _udpClient;
+    private readonly ILogger<UdpSessionOwnerNotifier> _logger;
+
+    public UdpSessionOwnerNotifier(ILogger<UdpSessionOwnerNotifier> logger)
+    {
+        _logger = logger;
+        _udpClient = new UdpClient();
+    }
 
     public async Task NotifySessionClaimedAsync(string sessionId, Match match, string connectionInfo)
     {
@@ -245,14 +251,33 @@ public class HttpSessionOwnerNotifier : ISessionOwnerNotifier
 
         try
         {
-            // connectionInfo contains the game server's HTTP endpoint
-            await _httpClient.PostAsJsonAsync($"{connectionInfo}/session-claimed", payload);
-            _logger.LogInformation("Notified session owner: SessionId={SessionId}", sessionId);
+            // connectionInfo contains the game server's IP:Port (e.g., "192.168.1.100:7777")
+            var parts = connectionInfo.Split(':');
+            var ipAddress = parts[0];
+            var port = int.Parse(parts[1]);
+
+            // Serialize payload to JSON bytes
+            var jsonPayload = JsonSerializer.Serialize(payload);
+            var bytes = Encoding.UTF8.GetBytes(jsonPayload);
+
+            // Send UDP packet to game server
+            await _udpClient.SendAsync(bytes, bytes.Length, ipAddress, port);
+            
+            _logger.LogInformation(
+                "Sent UDP notification to session owner: SessionId={SessionId}, Endpoint={Endpoint}", 
+                sessionId, connectionInfo);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to notify session owner: SessionId={SessionId}", sessionId);
+            _logger.LogWarning(ex, 
+                "Failed to send UDP notification to session owner: SessionId={SessionId}, Endpoint={ConnectionInfo}", 
+                sessionId, connectionInfo);
         }
+    }
+
+    public void Dispose()
+    {
+        _udpClient?.Dispose();
     }
 }
 ```
@@ -260,18 +285,99 @@ public class HttpSessionOwnerNotifier : ISessionOwnerNotifier
 **Registration:**
 ```csharp
 // In Program.cs, replace the stub notifier
-builder.Services.AddHttpClient<HttpSessionOwnerNotifier>();
-builder.Services.AddSingleton<ISessionOwnerNotifier, HttpSessionOwnerNotifier>();
+builder.Services.AddSingleton<ISessionOwnerNotifier, UdpSessionOwnerNotifier>();
 ```
+
+**Unreal Engine Game Server (C++):**
+
+```cpp
+// Simple UDP listener for Unreal Engine game servers
+FUdpSocketReceiver* SocketReceiver;
+FSocket* ListenSocket;
+
+void AMyGameServer::SetupMatchmakerListener()
+{
+    // Create UDP socket bound to port 7777
+    ListenSocket = FUdpSocketBuilder(TEXT("MatchmakerListener"))
+        .AsReusable()
+        .BoundToPort(7777)
+        .Build();
+    
+    // Start receiving messages
+    SocketReceiver = new FUdpSocketReceiver(ListenSocket, 
+        FTimespan::FromMilliseconds(100), 
+        TEXT("MatchmakerReceiver"));
+    SocketReceiver->OnDataReceived().BindUObject(this, 
+        &AMyGameServer::OnMatchmakerMessage);
+}
+
+void AMyGameServer::OnMatchmakerMessage(const FArrayReaderPtr& Data, 
+    const FIPv4Endpoint& Endpoint)
+{
+    // Convert bytes to JSON string
+    FString JsonString;
+    JsonString.AppendChars((const ANSICHAR*)Data->GetData(), Data->Num());
+    
+    // Parse JSON and process match notification
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    
+    if (FJsonSerializer::Deserialize(Reader, JsonObject))
+    {
+        FString SessionId = JsonObject->GetStringField(TEXT("sessionId"));
+        TSharedPtr<FJsonObject> MatchObj = JsonObject->GetObjectField(TEXT("match"));
+        
+        // Process the match (update session state, prepare for players, etc.)
+        HandleMatchClaimed(SessionId, MatchObj);
+        
+        // Optional: Send acknowledgment back to matchmaker
+        FString AckMessage = FString::Printf(TEXT("{\"status\":\"received\",\"sessionId\":\"%s\"}"), 
+            *SessionId);
+        int32 BytesSent;
+        ListenSocket->SendTo((uint8*)TCHAR_TO_UTF8(*AckMessage), AckMessage.Len(), 
+            BytesSent, *Endpoint.ToInternetAddr());
+    }
+}
+```
+
+**UDP Reliability Considerations:**
+
+UDP is connectionless and does not guarantee delivery. Consider adding acknowledgment handling:
+
+**Option 1: Fire-and-Forget (Simplest)**
+- Matchmaker sends notification and assumes success
+- Suitable for local network with low packet loss
+- Session owner updates EOS session state, which serves as implicit confirmation
+
+**Option 2: Acknowledgment with Retry (Recommended)**
+- Game server sends ACK response (shown in example above)
+- Matchmaker retries if no ACK received within timeout
+- Provides reliability without TCP overhead
+
+**Option 3: TCP or HTTP (Most Reliable)**
+- Use TCP sockets or HTTP for guaranteed delivery
+- More complex implementation in Unreal (requires third-party libraries for HTTP)
+- Higher latency and resource usage
+
+For most game server scenarios, Option 1 (fire-and-forget) is sufficient since the session state in EOS serves as the source of truth. If the notification is lost, the session remains unclaimed and will be selected again by the next match.
 
 **Notification Mechanisms:**
 
 Common notification approaches:
-- **HTTP POST**: Game server exposes webhook endpoint
+- **UDP Packets**: Send datagrams to game server (recommended for Unreal Engine - native socket support)
+- **TCP Sockets**: Persistent connection with guaranteed delivery
+- **HTTP POST**: Game server exposes webhook endpoint (requires third-party library in Unreal)
 - **Message Queue**: Publish to RabbitMQ, AWS SQS, Azure Service Bus
 - **gRPC**: Call game server's gRPC service
 - **WebSocket**: Send message over persistent connection
 - **Database**: Write to shared database table that servers poll
+
+**Why UDP for Game Servers:**
+- Unreal Engine has native UDP socket support (`FUdpSocketBuilder`, `FUdpSocketReceiver`)
+- Minimal code required (10-20 lines)
+- No external dependencies
+- Game developers already familiar with UDP networking
+- Lower latency than HTTP/TCP for local network communication
 
 ### Extending Create Mode with Dedicated Server Provider
 
@@ -286,8 +392,7 @@ Players → MatchMaker → Create Match → Allocate Server → Create Session �
 ```csharp
 public interface IDedicatedServerProvider
 {
-    Task<DedicatedServer> AllocateServerAsync();
-    Task ReleaseServerAsync(string serverId);
+    Task<DedicatedServer> RequestServerAsync();
 }
 
 public class DedicatedServer
@@ -305,7 +410,7 @@ public class DedicatedServer
 var match = new Match(requestsForMatch);
 
 // Allocate a dedicated server
-var server = await _serverProvider.AllocateServerAsync();
+var server = await _serverProvider.RequestServerAsync();
 
 // Create session with server info
 var sessionInfo = await _sessionCreator.GetSessionAsync(match);
@@ -321,67 +426,6 @@ _logger.LogInformation(
     match.MatchId, server.ServerId);
 ```
 
-**Example: AWS GameLift Integration**
-```csharp
-public class GameLiftServerProvider : IDedicatedServerProvider
-{
-    private readonly IAmazonGameLift _gameLiftClient;
-    private readonly string _fleetId;
-
-    public async Task<DedicatedServer> AllocateServerAsync()
-    {
-        var request = new CreateGameSessionRequest
-        {
-            FleetId = _fleetId,
-            MaximumPlayerSessionCount = 4
-        };
-
-        var response = await _gameLiftClient.CreateGameSessionAsync(request);
-        
-        return new DedicatedServer
-        {
-            ServerId = response.GameSession.GameSessionId,
-            IpAddress = response.GameSession.IpAddress,
-            Port = response.GameSession.Port
-        };
-    }
-
-    public async Task ReleaseServerAsync(string serverId)
-    {
-        // GameLift automatically terminates sessions when empty
-        await Task.CompletedTask;
-    }
-}
-```
-
-**Example: Custom Server Provider Integration**
-```csharp
-public class CustomServerProvider : IDedicatedServerProvider
-{
-    private readonly HttpClient _httpClient;
-    private readonly string _allocatorEndpoint;
-
-    public async Task<DedicatedServer> AllocateServerAsync()
-    {
-        var response = await _httpClient.PostAsync($"{_allocatorEndpoint}/allocate", null);
-        var allocation = await response.Content.ReadFromJsonAsync<ServerAllocation>();
-        
-        return new DedicatedServer
-        {
-            ServerId = allocation.Name,
-            IpAddress = allocation.Status.Address,
-            Port = allocation.Status.Ports[0].Port
-        };
-    }
-
-    public async Task ReleaseServerAsync(string serverId)
-    {
-        // Mark server as ready for reallocation
-        await _httpClient.PostAsync($"{_allocatorEndpoint}/ready/{serverId}", null);
-    }
-}
-```
-
 This extension is not included in the sample but demonstrates how the architecture can be adapted to your deployment needs.
 
 ### Choosing the Right Mode
@@ -389,22 +433,11 @@ This extension is not included in the sample but demonstrates how the architectu
 **Use Create Mode when:**
 - Players connect peer-to-peer (no dedicated servers)
 - You want the matchmaker to orchestrate server allocation
-- You're integrating with a dedicated server provider (GameLift, custom allocator, etc.)
-- Sessions are ephemeral and created on-demand
 
 **Use Find Mode when:**
-- Game servers create their own sessions
+- Game servers create their own EOS sessions
 - You have pre-allocated or player-hosted servers
-- Servers register themselves with EOS
 - You want servers to control session lifecycle
-
-**Hybrid Approach:**
-
-Some games may use both modes:
-- **Create mode** for casual/quick play (P2P or on-demand servers)
-- **Find mode** for custom/private servers (player-hosted or dedicated)
-
-This requires running two separate matchmaker instances with different configurations.
 
 ---
 
