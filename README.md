@@ -42,17 +42,20 @@ This repository provides a simple matchmaking service implemented as an `Extend 
 - **Development Tools**: Bash, Make, Docker, .NET 8 SDK, Postman, extend-helper-cli
 - **AccelByte Account**: AGS environment with namespace and OAuth client
 - **EOS Account**: Epic Games Developer Portal account with Product credentials
+- **EOS SDK**: Download and place in `EOS-SDK/` directory (see Setup Guide)
 
 > See [Setup Guide](docs/setup.md) for detailed prerequisites and installation instructions.
 
 ### Setup Steps
 
-1. **Create environment file:**
+1. **Download EOS SDK** and place in `EOS-SDK/` directory (see [Setup Guide](docs/setup.md#downloading-the-eos-sdk))
+
+2. **Create environment file:**
    ```bash
    cp .env.template .env
    ```
 
-2. **Configure credentials** in `.env`:
+3. **Configure credentials** in `.env`:
    ```bash
    # AccelByte Configuration
    AB_BASE_URL=https://test.accelbyte.io
@@ -68,12 +71,12 @@ This repository provides a simple matchmaking service implemented as an `Extend 
    EOS_CLIENT_SECRET=your-eos-client-secret
    ```
 
-3. **Build and run:**
+4. **Build and run:**
    ```bash
    docker compose up --build
    ```
 
-4. **Access the service:**
+5. **Access the service:**
    - **Swagger UI**: `http://localhost:8000/matchmaking/apidocs/`
    - **REST API**: `http://localhost:8000/matchmaking`
    - **Metrics**: `http://localhost:8080/metrics`
