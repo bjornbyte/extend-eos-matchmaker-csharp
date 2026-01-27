@@ -37,6 +37,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
     [Collection("EOS Integration")]
     public class SessionFinderIntegrationTests : IAsyncLifetime
     {
+        private static readonly TimeSpan EosSessionIndexDelay = TimeSpan.FromSeconds(5);
         private readonly ITestOutputHelper _output;
         private readonly SharedEOSFixture _eosFixture;
         private EmptySessionTestHelper _testHelper;
@@ -177,8 +178,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             }
 
             // Wait for sessions to be indexed by EOS
-            _output.WriteLine("Waiting 2 seconds for EOS to index sessions...");
-            await Task.Delay(2000);
+            _output.WriteLine($"Waiting {EosSessionIndexDelay.TotalSeconds} seconds for EOS to index sessions...");
+            await Task.Delay(EosSessionIndexDelay);
 
             var claimedSessionIds = new List<string>();
 
@@ -274,7 +275,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             _output.WriteLine($"  Created started session 2: {startedSessionId2}");
 
             // Wait for sessions to be indexed by EOS
-            await Task.Delay(2000);
+            _output.WriteLine($"Waiting {EosSessionIndexDelay.TotalSeconds} seconds for EOS to index sessions...");
+            await Task.Delay(EosSessionIndexDelay);
 
             var requests = new List<MatchRequest>
             {
@@ -324,8 +326,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             _output.WriteLine($"  Created session 2: {sessionId2}");
 
             // Wait for sessions to be indexed by EOS
-            _output.WriteLine("Waiting 2 seconds for EOS to index sessions...");
-            await Task.Delay(2000);
+            _output.WriteLine($"Waiting {EosSessionIndexDelay.TotalSeconds} seconds for EOS to index sessions...");
+            await Task.Delay(EosSessionIndexDelay);
 
             var requests1 = new List<MatchRequest>
             {
@@ -414,8 +416,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             _output.WriteLine($"  Created session: {sessionId}");
 
             // Wait for session to be indexed by EOS
-            _output.WriteLine("Waiting 2 seconds for EOS to index session...");
-            await Task.Delay(2000);
+            _output.WriteLine($"Waiting {EosSessionIndexDelay} for EOS to index session...");
+            await Task.Delay(EosSessionIndexDelay);
 
             var requests1 = new List<MatchRequest>
             {
