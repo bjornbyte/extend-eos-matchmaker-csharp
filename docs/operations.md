@@ -74,19 +74,37 @@ Common errors:
 
 ## Troubleshooting
 
+### Testing Issues
+
+**401 Unauthorized:**
+- Check client_id and client_secret are correct
+- Ensure OAuth client has required permissions
+- Verify user credentials (if using password grant)
+- Check token hasn't expired
+
+**403 Forbidden:**
+- Verify test user has `NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]` permissions
+- Check namespace matches your namespace
+- Regenerate access token after adding permissions
+
+**Connection Refused:**
+- Start the service: `docker compose up --build`
+- Verify service is listening on port 8000
+
+**Requests Not Matching:**
+- Ensure at least MatchSize (default: 2) requests are submitted
+- Check MatchMaker is running (logs show tick every second)
+- Verify EOS credentials are valid in `.env` file
+
+### Operational Issues
+
 **Service Won't Start:** Check `.env` file, verify EOS credentials, review logs: `docker compose logs -f`
 
-**Requests Not Matching:** Verify enough requests in pool (>= MatchSize), check MatchMaker logs for tick events
-
 **EOS Session Creation Fails:** Verify EOS Product/Sandbox/Deployment exist, check credentials
-
-**Permission Denied (403):** Verify OAuth client permissions, check token validity
 
 **High Latency:** Check Zipkin traces for slow spans
 
 **High Error Rate:** Check logs and Zipkin traces, monitor EOS failure rate
-
-For testing issues, see **[Testing Guide](testing_guide.md#troubleshooting)**.
 
 ---
 
