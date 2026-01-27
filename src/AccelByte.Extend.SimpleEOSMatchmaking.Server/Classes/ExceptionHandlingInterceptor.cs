@@ -14,11 +14,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
 {
     public class ExceptionHandlingInterceptor : Interceptor
     {
-        private readonly ILogger<ExceptionHandlingInterceptor> _Logger;
+        private readonly ILogger<ExceptionHandlingInterceptor> Logger;
 
         public ExceptionHandlingInterceptor(ILogger<ExceptionHandlingInterceptor> logger)
         {
-            _Logger = logger;
+            Logger = logger;
         }
 
         public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
@@ -29,7 +29,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             }
             catch (Exception x)
             {
-                _Logger.LogError($"{context.Method} - Error: {x.Message}");
+                Logger.LogError($"{context.Method} - Error: {x.Message}");
                 throw new RpcException(new Status(StatusCode.Internal, x.Message));
             }
         }

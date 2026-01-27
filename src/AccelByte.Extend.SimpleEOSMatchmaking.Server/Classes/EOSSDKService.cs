@@ -18,25 +18,25 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
     /// </summary>
     public class EOSSDKService : IHostedService, IDisposable
     {
-        private readonly ILogger<EOSSDKService> _logger;
-        private readonly EOSConfig _config;
-        private readonly object _tickLock = new object();
-        private PlatformInterface? _platformInterface;
-        private bool _disposed;
+        private readonly ILogger<EOSSDKService> Logger;
+        private readonly EOSConfig Config;
+        private readonly object TickLock = new object();
+        private PlatformInterface? PlatformInterface;
+        private bool Disposed;
 
         public EOSSDKService(ILogger<EOSSDKService> logger, IOptions<EOSConfig> config)
         {
-            _logger = logger;
-            _config = config.Value;
+            Logger = logger;
+            Config = config.Value;
             
             // Override with environment variables if present
-            _config.ReadEnvironmentVariables();
+            Config.ReadEnvironmentVariables();
         }
 
         /// <summary>
         /// Gets the EOS Platform Interface instance
         /// </summary>
-        public PlatformInterface? Platform => _platformInterface;
+        public PlatformInterface? Platform => PlatformInterface;
 
         /// <summary>
         /// Thread-safe wrapper for Platform.Tick().
@@ -44,9 +44,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
         /// </summary>
         public void Tick()
         {
-            lock (_tickLock)
+            lock (TickLock)
             {
-                _platformInterface?.Tick();
+                PlatformInterface?.Tick();
             }
         }
 
@@ -54,9 +54,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
         {
             try
             {
-                _logger.LogInformation("Initializing EOS SDK...");
-                _logger.LogInformation("EOS Configuration: ProductId={ProductId}, SandboxId={SandboxId}, DeploymentId={DeploymentId}", 
-                    _config.ProductId, _config.SandboxId, _config.DeploymentId);
+                Logger.LogInformation("Initializing EOS SDK...");
+                Logger.LogInformation("EOS Configuration: ProductId={ProductId}, SandboxId={SandboxId}, DeploymentId={DeploymentId}", 
+                    Config.ProductId, Config.SandboxId, Config.DeploymentId);
 
                 // Initialize EOS SDK
                 var initializeOptions = new InitializeOptions
@@ -73,94 +73,84 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
                     {
                         case Epic.OnlineServices.Logging.LogLevel.Fatal:
                         case Epic.OnlineServices.Logging.LogLevel.Error:
-                            _logger.LogError(logMessage);
+                            Logger.LogError(logMessage);
                             break;
                         case Epic.OnlineServices.Logging.LogLevel.Warning:
-                            _logger.LogWarning(logMessage);
+                            Logger.LogWarning(logMessage);
                             break;
                         case Epic.OnlineServices.Logging.LogLevel.Info:
-                            _logger.LogInformation(logMessage);
+                            Logger.LogInformation(logMessage);
                             break;
                         case Epic.OnlineServices.Logging.LogLevel.Verbose:
                         case Epic.OnlineServices.Logging.LogLevel.VeryVerbose:
-                            _logger.LogDebug(logMessage);
+                            Logger.LogDebug(logMessage);
                             break;
                     }
                 });
 
-                // Set log level to Warning to reduce noise (this suppresses the "hardcoded duplicate" message boxes)
-                Epic.OnlineServices.Logging.LoggingInterface.SetLogLevel(
-                    Epic.OnlineServices.Logging.LogCategory.AllCategories,
-                    Epic.OnlineServices.Logging.LogLevel.Warning);
-
                 var initializeResult = PlatformInterface.Initialize(ref initializeOptions);
                 if (initializeResult != Result.Success)
                 {
-                    _logger.LogError("Failed to initialize EOS SDK: {Result}", initializeResult);
+                    Logger.LogError("Failed to initialize EOS SDK: {Result}", initializeResult);
                     throw new Exception($"EOS SDK initialization failed: {initializeResult}");
                 }
 
-                _logger.LogInformation("EOS SDK initialized successfully");
+                Logger.LogInformation("EOS SDK initialized successfully");
 
-                // Create platform interface
                 var platformOptions = new Epic.OnlineServices.Platform.Options
                 {
-                    ProductId = _config.ProductId,
-                    SandboxId = _config.SandboxId,
-                    DeploymentId = _config.DeploymentId,
+                    ProductId = Config.ProductId,
+                    SandboxId = Config.SandboxId,
+                    DeploymentId = Config.DeploymentId,
                     ClientCredentials = new ClientCredentials
                     {
-                        ClientId = _config.ClientId,
-                        ClientSecret = _config.ClientSecret
+                        ClientId = Config.ClientId,
+                        ClientSecret = Config.ClientSecret
                     },
                     IsServer = true,
-                    EncryptionKey = null, // Optional: Add encryption key if needed
-                    OverrideCountryCode = null,
-                    OverrideLocaleCode = null,
                     Flags = PlatformFlags.DisableOverlay | PlatformFlags.DisableSocialOverlay,
-                    CacheDirectory = null,
                     TickBudgetInMilliseconds = 0
                 };
 
-                _platformInterface = PlatformInterface.Create(ref platformOptions);
-                if (_platformInterface == null)
+                PlatformInterface = PlatformInterface.Create(ref platformOptions);
+                if (PlatformInterface == null)
                 {
-                    _logger.LogError("Failed to create EOS Platform Interface");
+                    Logger.LogError("Failed to create EOS Platform Interface");
                     throw new Exception("Failed to create EOS Platform Interface");
                 }
 
-                _logger.LogInformation("EOS Platform Interface created successfully");
-                _logger.LogInformation("EOS SDK is ready for use");
+                Logger.LogInformation("EOS Platform Interface created successfully");
+                Logger.LogInformation("EOS SDK is ready for use");
                 return Task.CompletedTask;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error initializing EOS SDK");
+                Logger.LogError(ex, "Error initializing EOS SDK");
                 throw;
             }
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Shutting down EOS SDK...");
+            Logger.LogInformation("Shutting down EOS SDK...");
             
             Dispose();
             
-            _logger.LogInformation("EOS SDK shut down successfully");
+            Logger.LogInformation("EOS SDK shut down successfully");
             return Task.CompletedTask;
         }
 
         public void Dispose()
         {
-            if (_disposed)
+            if (Disposed)
                 return;
 
-            _platformInterface?.Release();
-            _platformInterface = null;
+            PlatformInterface?.Release();
+            PlatformInterface = null;
 
             PlatformInterface.Shutdown();
 
-            _disposed = true;
+            Disposed = true;
             GC.SuppressFinalize(this);
         }
     }
