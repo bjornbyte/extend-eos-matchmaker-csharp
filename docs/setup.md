@@ -185,29 +185,6 @@ For optional configuration like matchmaker behavior and session provider mode, e
 }
 ```
 ---
-
-## Deployment Scenarios
-
-### Single-Instance Deployment (Default)
-
-**Use case:** Development, testing, small-scale production (< 1000 concurrent players)
-
-**Setup:** Use default configuration with only required credentials (see [Configuration](#configuration) section).
-
-**What's included:** In-memory storage (match pool, completed requests, claimed sessions cache)
-
-**Limitations:** No horizontal scaling, data lost on restart
-
-### Multi-Instance Deployment (Production Scale)
-
-**Use case:** High availability, > 1000 concurrent players, horizontal scaling
-
-**Required:** Implement distributed versions of IMatchPool, ICompletedRequestStore, and IClaimedSessionsCache (find mode only)
-
-**See:** [Implementation Examples](examples.md) and [Operations Guide](operations.md#multi-instance-deployment) for details
-
----
-
 ## Local Development Without Docker
 
 ### 1. Install .NET 8.0+ SDK
