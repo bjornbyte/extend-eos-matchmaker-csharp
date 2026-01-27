@@ -744,21 +744,21 @@ public interface ISessionOwnerNotifier
 
 These interfaces define how the matchmaking service stores and manages data. The default implementations use in-memory storage suitable for single-instance deployments. Implement custom versions when you need distributed storage, durability, or multi-instance deployments.
 
+**All default implementations share these limitations:**
+- Lost on service restart (no durability)
+- Cannot be shared across multiple instances
+- Limited by server memory
+
+**Common implementation options:**
+- **AccelByte Managed Key-Value Store:** Best for multi-instance deployments (Valkey/Redis-compatible, fully managed)
+- **Database:** Best for durability, long-term retention, and complex queries
+- **Specialized stores:** Message queues for high throughput, time-series databases for analytics
+
 #### IMatchPool
 
 **Purpose:** Storage for pending match requests.
 
-**When to Implement:**
-- **Multi-instance deployments:** Multiple matchmaker instances need shared state
-- **High availability:** Requests should survive service restarts
-- **Large-scale matchmaking:** Need external queue system for performance
-
-**Default Implementation:** `MatchPool` - Thread-safe in-memory storage (single-instance only)
-
-**Limitations of Default:**
-- Lost on service restart (no durability)
-- Cannot be shared across multiple instances
-- Limited by server memory
+**Default:** `MatchPool` - Thread-safe in-memory storage
 
 **Interface:**
 ```csharp
@@ -773,10 +773,7 @@ public interface IMatchPool
 }
 ```
 
-**Custom Implementation Scenarios:**
-- **AccelByte Managed Key-Value Store:** Distributed cache for multi-instance deployments (Valkey/Redis-compatible)
-- **Database:** SQL Server or PostgreSQL for durability and querying
-- **Message Queue:** RabbitMQ or AWS SQS for high-throughput scenarios
+**When to customize:** Multi-instance deployments, high availability, large-scale matchmaking
 
 **See:** [Key-Value Store-based MatchPool example](#key-value-store-based-matchpool-example) below
 
@@ -784,18 +781,7 @@ public interface IMatchPool
 
 **Purpose:** Storage for completed requests with retention period.
 
-**When to Implement:**
-- **Service restart durability:** Completed requests should survive restarts
-- **Multi-instance deployments:** Multiple instances need shared state
-- **Long retention periods:** Need database with indexing for efficient queries
-- **Audit requirements:** Need persistent storage for compliance
-
-**Default Implementation:** `CompletedRequestStore` - Thread-safe in-memory storage with automatic expiration
-
-**Limitations of Default:**
-- Lost on service restart (no durability)
-- Cannot be shared across multiple instances
-- Limited retention by server memory
+**Default:** `CompletedRequestStore` - Thread-safe in-memory storage with automatic expiration
 
 **Interface:**
 ```csharp
@@ -807,10 +793,7 @@ public interface ICompletedRequestStore
 }
 ```
 
-**Custom Implementation Scenarios:**
-- **AccelByte Managed Key-Value Store:** Distributed cache with TTL for multi-instance deployments (Valkey/Redis-compatible)
-- **Database:** SQL Server or PostgreSQL for long-term retention and querying
-- **Time-series database:** InfluxDB or TimescaleDB for analytics
+**When to customize:** Service restart durability, multi-instance deployments, long retention periods, audit requirements
 
 **See:** [Database-backed CompletedRequestStore example](#database-backed-completedrequeststore-example) below
 
@@ -818,15 +801,7 @@ public interface ICompletedRequestStore
 
 **Purpose:** Cache for claimed sessions to prevent race conditions (find mode only).
 
-**When to Implement:**
-- **Multi-instance deployments:** Multiple matchmaker instances need shared cache
-- **Find mode at scale:** High concurrency requires distributed coordination
-
-**Default Implementation:** `InMemoryClaimedSessionsCache` - Thread-safe in-memory cache with automatic expiration
-
-**Limitations of Default:**
-- Cannot be shared across multiple instances
-- Race conditions possible in multi-instance deployments
+**Default:** `InMemoryClaimedSessionsCache` - Thread-safe in-memory cache with automatic expiration
 
 **Interface:**
 ```csharp
@@ -838,9 +813,7 @@ public interface IClaimedSessionsCache
 }
 ```
 
-**Custom Implementation Scenarios:**
-- **AccelByte Managed Key-Value Store:** Distributed cache with TTL for multi-instance deployments (Valkey/Redis-compatible)
-- **Distributed lock service:** Consul or etcd for coordination
+**When to customize:** Multi-instance deployments in find mode, high concurrency
 
 **Note:** Only used in find mode. Not needed for create mode.
 
