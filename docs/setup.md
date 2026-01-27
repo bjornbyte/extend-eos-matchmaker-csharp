@@ -150,6 +150,9 @@ ASP.NET Core's `WebApplication.CreateBuilder(args)` automatically loads environm
 | **Service Configuration** |||||
 | `PLUGIN_GRPC_SERVER_AUTH_ENABLED` | No | `true` | Enable/disable authorization | Set to `false` for local testing only. ⚠️ Never disable in production |
 | `BASE_PATH` | ✅ Yes | - | Service URL path prefix (e.g., `/matchmaking`) | Used by gateway for routing. Must start with `/`. Affects all endpoints |
+| **Observability Configuration** |||||
+| `OTEL_SERVICE_NAME` | No | `extend-app-service-extension` | Service name for OpenTelemetry tracing | Used to identify this service in distributed traces. Automatically prefixed with `extend-app-` |
+| `OTEL_EXPORTER_ZIPKIN_ENDPOINT` | No | - | Zipkin endpoint URL (e.g., `http://zipkin:9411/api/v2/spans`) | Required only if using Zipkin for distributed tracing. See [Operations Guide](operations.md#observability) |
 | **Matchmaker Configuration** (optional - can also use appsettings.json) |||||
 | `MATCHMAKER__MATCHSIZE` | No | `2` | Number of players per match | Change based on game mode (e.g., 4 for squad, 10 for team deathmatch) |
 | `MATCHMAKER__TICKINTERVALSECONDS` | No | `1` | How often matcher runs (seconds) | Increase to reduce CPU in low-traffic; decrease for faster matching in high-traffic |
