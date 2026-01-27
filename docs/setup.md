@@ -26,6 +26,10 @@ f. extend-helper-cli
 
 > ❗ In macOS, you may use Homebrew to easily install some of the tools above.
 
+### Epic Online Services (EOS) SDK
+
+The service requires the EOS SDK to be downloaded and placed in the project directory. The SDK is not included in the repository.
+
 ### AccelByte Account
 
 You need an AccelByte Gaming Services (AGS) account with:
@@ -50,6 +54,35 @@ You need an Epic Games Developer Portal account with:
 3. Go to **Product Settings** 
 
 From there you can copy the product ID, client ID and secret, sandbox ID, and deployment ID.
+
+#### Downloading the EOS SDK
+
+1. Go to [Epic Games Developer Portal](https://dev.epicgames.com/portal)
+2. Navigate to **Downloads & Release notes** 
+3. Download the **EOS SDK for C#** (version 1.18.1.2 or later recommended)
+4. Extract the downloaded archive
+5. Copy the SDK contents to the `EOS-SDK` directory in your project root
+
+**Expected directory structure after extraction:**
+
+```
+extend-eos-matchmaker-csharp/
+├── EOS-SDK/
+│   ├── Bin/
+│   │   ├── EOSSDK-Win64-Shipping.dll
+│   │   ├── libEOSSDK-Linux-Shipping.so
+│   │   ├── libEOSSDK-LinuxArm64-Shipping.so
+│   │   └── libEOSSDK-Mac-Shipping.dylib
+│   ├── Source/
+│   │   └── (C# source files)
+│   └── Tools/
+│       └── (SDK tools)
+├── src/
+├── gateway/
+└── ...
+```
+
+> ⚠️ **Important:** The `EOS-SDK` directory is excluded from version control (`.gitignore`). Each developer must download and place the SDK locally. The build process requires the SDK to be present in this exact location.
 
 ---
 
