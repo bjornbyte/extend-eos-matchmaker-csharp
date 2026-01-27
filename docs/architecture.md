@@ -1643,38 +1643,6 @@ Available examples:
 
 ---
 
-## Session Provider Decision Tree
-
-Choosing between create mode and find mode depends on your game architecture and server infrastructure. Use this decision tree to determine the right approach.
-
-### Decision Tree
-
-```
-How are game servers managed in your game?
-
-├─ Players connect PEER-TO-PEER (no dedicated servers)
-│  └─ Use CREATE MODE
-│     └─ Matchmaker creates session, players connect directly to each other
-│
-├─ Dedicated servers are ALLOCATED ON-DEMAND
-│  └─ Use CREATE MODE with dedicated server provider integration
-│     ├─ Matchmaker creates session
-│     ├─ Allocate server from provider (GameLift, custom allocator, etc.)
-│     └─ Add server connection info to session
-│
-├─ Dedicated servers are PRE-ALLOCATED (always running)
-│  └─ Use FIND MODE
-│     ├─ Servers create EOS sessions and mark as available
-│     ├─ Matchmaker finds available sessions
-│     └─ Matchmaker notifies server owner when session is claimed
-│
-└─ Players HOST their own servers
-   └─ Use FIND MODE
-      ├─ Player-hosted servers create EOS sessions
-      ├─ Matchmaker finds available sessions
-      └─ Matchmaker notifies server owner when session is claimed
-```
-
 ### Mode Comparison
 
 | Aspect | Create Mode | Find Mode |
