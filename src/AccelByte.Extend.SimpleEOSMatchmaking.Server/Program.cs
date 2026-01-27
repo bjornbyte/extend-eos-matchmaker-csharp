@@ -70,7 +70,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             if (appResourceName.IsNullOrEmpty())
                 appResourceName = "SERVICEEXTENSIONEXTENDAPP";
 
-            bool enableAuthorization = builder.Configuration.GetValue<bool>("EnableAuthorization");
+            bool enableAuthorization = builder.Configuration.GetValue<bool>("EnableAuthorization", true);
 
             // Configure MatchMaker settings
             var matchMakerConfig = new MatchMakerConfig();
