@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
-using Xunit.Abstractions;
+using Xunit.Sdk;
 using DotNetEnv;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
@@ -30,11 +30,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
     /// 2. Real EOS SDK connection (not mocked)
     /// 3. Clean state (no existing sessions in EOS)
     /// 
+    /// Tests run in parallel using unique bucket IDs to prevent interference.
+    /// 
     /// To run these tests manually:
     /// 1. Ensure you have valid EOS credentials in .env file
     /// 2. Run: dotnet test --filter "FullyQualifiedName~SessionFinderIntegrationTests"
     /// </summary>
-    [Collection("EOS Integration")]
     public class SessionFinderIntegrationTests : IAsyncLifetime
     {
         private static readonly TimeSpan EosSessionIndexDelay = TimeSpan.FromSeconds(5);
@@ -51,7 +52,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             _testBucketId = $"test-{Guid.NewGuid():N}";
         }
 
-        public Task InitializeAsync()
+        public ValueTask InitializeAsync()
         {
             // Create test helper for each test
             if (_eosFixture.IsInitialized)
@@ -67,10 +68,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 _testHelper = new EmptySessionTestHelper(helperLogger, _eosFixture.EOSService);
             }
 
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
-        public async Task DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             // Cleanup all test sessions after each test
             if (_testHelper != null)

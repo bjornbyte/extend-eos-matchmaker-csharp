@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
-using Xunit.Abstractions;
+using Xunit.Sdk;
 using DotNetEnv;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
@@ -153,12 +153,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
     /// all sessions created by that platform instance are automatically destroyed by EOS.
     /// In production, sessions persist as long as the matchmaking service is running.
     /// 
+    /// Tests run in parallel using the shared assembly fixture.
+    /// 
     /// To run these tests manually:
     /// 1. Ensure you have valid EOS credentials in .env file
     /// 2. Uncomment the tests below
     /// 3. Run: dotnet test --filter "FullyQualifiedName~SessionCreatorIntegrationTests"
     /// </summary>
-    [Collection("EOS Integration")]
     public class SessionCreatorIntegrationTests
     {
         // Integration tests are commented out to prevent EOS SDK initialization during normal test runs

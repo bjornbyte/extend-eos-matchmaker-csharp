@@ -11,12 +11,16 @@ using DotNetEnv;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 using Xunit;
 
+[assembly: AssemblyFixture(typeof(AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Fixtures.SharedEOSFixture))]
+
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Fixtures
 {
     /// <summary>
     /// Shared fixture for EOS SDK initialization across all integration tests.
     /// EOS SDK can only be initialized once per process, so this fixture is shared
-    /// across all test classes using xUnit's collection fixture feature.
+    /// across all test classes using xUnit v3's assembly fixture feature.
+    /// This allows tests to run in parallel while sharing the same EOS SDK instance.
+    /// Each test class uses unique bucket IDs to prevent test interference.
     /// </summary>
     public class SharedEOSFixture : IDisposable
     {
@@ -62,6 +66,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Fixtures
                     return;
                 }
                 IsInitialized = true;
+                Console.WriteLine("SharedEOSFixture: EOS SDK initialized successfully for assembly");
             }
             catch (Exception ex)
             {
@@ -74,22 +79,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Fixtures
         {
             if (IsInitialized)
             {
+                Console.WriteLine("SharedEOSFixture: Disposing EOS SDK");
                 EOSService?.StopAsync(CancellationToken.None).Wait();
                 EOSService?.Dispose();
             }
         }
-    }
-
-    /// <summary>
-    /// Collection definition for EOS integration tests.
-    /// All test classes that use [Collection("EOS Integration")] will share the same
-    /// SharedEOSFixture instance, ensuring only one EOS SDK initialization per test run.
-    /// </summary>
-    [CollectionDefinition("EOS Integration")]
-    public class EOSIntegrationCollection : ICollectionFixture<SharedEOSFixture>
-    {
-        // This class has no code, and is never created. Its purpose is simply
-        // to be the place to apply [CollectionDefinition] and all the
-        // ICollectionFixture<> interfaces.
     }
 }

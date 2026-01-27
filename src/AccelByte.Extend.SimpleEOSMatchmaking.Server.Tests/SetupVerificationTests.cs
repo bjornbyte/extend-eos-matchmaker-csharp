@@ -1,7 +1,5 @@
 using System;
 using Xunit;
-using FsCheck;
-using FsCheck.Xunit;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 {
@@ -18,13 +16,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
 
             // Assert
             Assert.True(result);
-        }
-
-        [Property]
-        public Property FsCheck_IsConfiguredCorrectly(int x)
-        {
-            // Property: Adding zero to any integer returns the same integer
-            return (x + 0 == x).ToProperty();
         }
     }
 }
