@@ -1324,60 +1324,20 @@ Do you need high availability (zero downtime)?
 
 ### Infrastructure Customization Guidelines
 
-When customizing infrastructure components, follow these guidelines:
+**The key decision:** Are you deploying multiple instances?
 
-#### When to Customize IMatchPool
+**Multi-instance deployment (high availability):**
+- **Required:** Implement distributed versions of IMatchPool and ICompletedRequestStore
+- **Required (find mode only):** Implement distributed IClaimedSessionsCache
+- **Recommended:** Use AccelByte Managed Key-Value Store for all three
+- **Alternative:** Use database for IMatchPool and ICompletedRequestStore if you need durability or complex queries
 
-**Customize when:**
-- Deploying multiple instances (required)
-- Need data durability across restarts
-- Pool size exceeds server memory
-- Need to query or analyze pending requests
-
-**Keep default when:**
-- Single-instance deployment
-- Moderate load (< 1000 concurrent players)
-- Acceptable to lose pending requests on restart
-
-**Implementation options:**
-- AccelByte Managed Key-Value Store: Best for multi-instance on AccelByte Extend, high performance
-- Database: Best for durability and querying
-- Message Queue: Best for very high throughput
-
-#### When to Customize ICompletedRequestStore
-
-**Customize when:**
-- Need data durability across restarts
-- Deploying multiple instances (required)
-- Long retention periods (> 1 hour)
-- Need to query completed requests for analytics
-- Compliance or audit requirements
-
-**Keep default when:**
-- Single-instance deployment
-- Short retention periods (< 1 hour)
-- No analytics requirements
-- Acceptable to lose history on restart
-
-**Implementation options:**
-- AccelByte Managed Key-Value Store: Best for multi-instance, short retention (< 24 hours)
-- Database: Best for long retention, analytics, compliance
-- Time-series database: Best for analytics and metrics
-
-#### When to Customize IClaimedSessionsCache (Find Mode Only)
-
-**Customize when:**
-- Deploying multiple instances in find mode (required)
-- High concurrency in find mode
-
-**Keep default when:**
-- Single-instance deployment
-- Using create mode (not needed)
-- Low concurrency in find mode
-
-**Implementation options:**
-- AccelByte Managed Key-Value Store: Best choice for distributed cache with TTL
-- Distributed lock service: Consul, etcd for coordination
+**Single-instance deployment (default):**
+- **Keep defaults** unless you have specific needs:
+  - Data durability across restarts → Use database
+  - Long retention (> 24 hours) → Use database for ICompletedRequestStore
+  - Analytics/compliance → Use database or time-series database
+  - Very high throughput → Use message queue for IMatchPool
 
 ### Monitoring and Observability
 
