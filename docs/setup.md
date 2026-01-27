@@ -192,76 +192,19 @@ For optional configuration like matchmaker behavior and session provider mode, e
 
 **Use case:** Development, testing, small-scale production (< 1000 concurrent players)
 
-**Configuration:** Use default settings with required credentials only.
+**Setup:** Use default configuration with only required credentials (see [Configuration](#configuration) section).
 
-**What's included:**
-- In-memory match pool (thread-safe, single process)
-- In-memory completed request store (lost on restart)
-- In-memory claimed sessions cache (find mode only)
-- Built-in logging to console
+**What's included:** In-memory storage (match pool, completed requests, claimed sessions cache)
 
-**Limitations:**
-- No horizontal scaling (single instance only)
-- Match pool and request history lost on restart
-- No durability across deployments
-
-**Setup:**
-
-Use default configuration with only required credentials. See [Configuration](#configuration) section for credential details.
-
-```bash
-# .env file - only required credentials needed
-AB_BASE_URL=https://test.accelbyte.io
-AB_CLIENT_ID=your-client-id
-AB_CLIENT_SECRET=your-client-secret
-AB_NAMESPACE=your-namespace
-
-EOS_PRODUCT_ID=your-product-id
-EOS_SANDBOX_ID=your-sandbox-id
-EOS_DEPLOYMENT_ID=your-deployment-id
-EOS_CLIENT_ID=your-eos-client-id
-EOS_CLIENT_SECRET=your-eos-client-secret
-```
+**Limitations:** No horizontal scaling, data lost on restart
 
 ### Multi-Instance Deployment (Production Scale)
 
-**Use case:** Production environments with high availability and horizontal scaling needs
+**Use case:** High availability, > 1000 concurrent players, horizontal scaling
 
-**Configuration:** Requires custom implementations of infrastructure extension points.
+**Required:** Implement distributed versions of IMatchPool, ICompletedRequestStore, and IClaimedSessionsCache (find mode only)
 
-**What to customize:**
-
-1. **IMatchPool** - Use distributed storage (Redis, database)
-   - Allows multiple instances to share the same match pool
-   - Provides durability across restarts
-   - See [Architecture Guide - Redis MatchPool Example](architecture.md#redis-matchpool-example)
-
-2. **ICompletedRequestStore** - Use persistent storage (Redis, database)
-   - Maintains request history across restarts
-   - Enables multi-instance deployments
-   - See [Architecture Guide - Database CompletedRequestStore Example](architecture.md#database-completedrequestore-example)
-
-3. **IClaimedSessionsCache** (Find mode only) - Use distributed cache (Redis)
-   - Prevents race conditions across multiple instances
-   - Required for multi-instance find mode deployments
-   - See [Architecture Guide - Redis ClaimedSessionsCache Example](architecture.md#redis-claimedsessionscache-example)
-
-4. **IPlayerNotifier** - Use production notification mechanism
-   - Replace logging with webhooks, push notifications, or message queues
-   - See [Architecture Guide - Webhook PlayerNotifier Example](architecture.md#webhook-playernotifier-example)
-
-**Setup:**
-
-Use same required credentials as single-instance (see [Configuration](#configuration)), plus any configuration needed for your custom implementations.
-
-```bash
-# Example: Redis connection string for distributed storage
-REDIS_CONNECTION_STRING=redis:6379
-
-# Example: Database connection for persistent storage
-DATABASE_CONNECTION_STRING=Server=db;Database=matchmaking;...
-
-> See [Architecture Guide - Extension Points](architecture.md#extension-points) for complete implementation examples.
+**See:** [Implementation Examples](examples.md) and [Operations Guide](operations.md#multi-instance-deployment) for details
 
 ---
 
@@ -382,98 +325,23 @@ curl https://<your-app-url>/apidocs/
 
 ## Testing the Deployment
 
-### Using Postman
+For comprehensive testing instructions, see the **[Testing Guide](testing_guide.md)**.
 
-1. **Import Collections**:
-   - `demo/get-access-token.postman_collection.json`
-   - `demo/matchmaking-service-demo.postman_collection.json`
-
-2. **Configure Environment**:
-   - `AB_BASE_URL` - Your AGS base URL
-   - `AB_NAMESPACE` - Your namespace
-   - `AB_CLIENT_ID` - Your OAuth client ID
-   - `AB_CLIENT_SECRET` - Your OAuth client secret
-   - `AB_USERNAME` - Test user username
-   - `AB_PASSWORD` - Test user password
-   - `EXTEND_APP_SERVICE_URL` - Your deployed service URL
-
-3. **Run Tests**:
-   - Get user access token
-   - Submit match request
-   - Check match status
-   - Cancel request (optional)
-
-### Using Swagger UI
-
-1. Navigate to `https://<your-app-url>/apidocs/`
-2. Click **Authorize**
-3. Enter `Bearer <access_token>`
-4. Test endpoints directly in the UI
-
-For detailed testing scenarios, see the [Testing Guide](testing_guide.md).
+Quick verification:
+```bash
+curl https://<your-app-url>/apidocs/
+```
 
 ---
 
 ## Troubleshooting
 
-### Service Won't Start
+For troubleshooting issues, see the **[Operations Guide](operations.md#troubleshooting)**.
 
-**Check EOS Credentials:**
-```bash
-docker compose logs | grep "EOS"
-```
-
-Look for initialization errors. Common issues:
-- Invalid Product ID, Sandbox ID, or Deployment ID
-- Invalid Client ID or Client Secret
-- Network connectivity to EOS services
-
-**Check AccelByte Configuration:**
-```bash
-docker compose logs | grep "AccelByte"
-```
-
-Verify:
-- Base URL is correct
-- Client credentials are valid
-- Namespace exists
-
-### Session Creation Fails
-
-**Error: `Failed to create EOS session`**
-
-1. Check EOS SDK logs:
-   ```bash
-   docker compose logs | grep "EOS SDK"
-   ```
-
-2. Verify EOS credentials are correct
-3. Check EOS service status
-4. Ensure deployment is active in EOS portal
-
-### Matches Not Being Created
-
-**Requests stay PENDING:**
-
-1. Check MatchMaker is running:
-   ```bash
-   docker compose logs | grep "MatchMaker"
-   ```
-
-2. Verify enough players in pool (need >= MatchSize)
-3. Check tick interval configuration
-4. Look for errors in matcher logs
-
-### Port Conflicts
-
-**Error: `port is already allocated`**
-
-Change ports in `docker-compose.yaml`:
-```yaml
-ports:
-  - "8001:8000"  # Change 8000 to 8001
-  - "8081:8080"  # Change 8080 to 8081
-```
+Common setup issues:
+- **Service won't start**: Check `.env` file has all required variables, verify EOS credentials
+- **Port conflicts**: Change ports in `docker-compose.yaml`
+- **EOS session creation fails**: Verify EOS Product/Sandbox/Deployment exist in Epic portal
 
 ---
 
