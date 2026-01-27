@@ -17,24 +17,15 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Model
     /// <summary>
     /// Represents a matchmaking request from a user
     /// </summary>
-    public class MatchRequest
+    public class MatchRequest(string userId, Dictionary<string, string>? metadata = null)
     {
-        public string RequestId { get; }
-        public string UserId { get; set; }
-        public MatchRequestStatus Status { get; set; }
-        public DateTime CreatedAt { get; set; }
+        public string RequestId { get; } = Guid.NewGuid().ToString();
+        public string UserId { get; set; } = userId;
+        public MatchRequestStatus Status { get; set; } = MatchRequestStatus.Pending;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? MatchedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public string? SessionId { get; set; }
-        public Dictionary<string, string>? Metadata { get; set; }
-
-        public MatchRequest(string userId, Dictionary<string, string>? metadata = null)
-        {
-            RequestId = Guid.NewGuid().ToString();
-            UserId = userId;
-            Status = MatchRequestStatus.Pending;
-            CreatedAt = DateTime.UtcNow;
-            Metadata = metadata;
-        }
+        public Dictionary<string, string>? Metadata { get; set; } = metadata;
     }
 }

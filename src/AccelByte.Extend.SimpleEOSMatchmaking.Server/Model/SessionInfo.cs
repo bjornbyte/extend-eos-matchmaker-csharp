@@ -12,9 +12,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Model
     /// </summary>
     public class SessionInfo
     {
-        public string SessionId { get; set; } = string.Empty;
-        public List<string> RequestIds { get; set; } = new();
-        public List<string> UserIds { get; set; } = new();
-        public DateTime CreatedAt { get; set; }
+        public string SessionId { get; init; } = string.Empty;
+        public List<string> RequestIds { get; init; } = [];
+        public List<string> UserIds { get; init; } = [];
+        public DateTime CreatedAt { get; init; }
     }
 }
