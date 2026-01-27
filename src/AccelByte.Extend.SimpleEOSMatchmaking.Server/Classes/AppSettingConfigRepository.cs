@@ -6,22 +6,23 @@ using System;
 
 using AccelByte.Sdk.Core.Logging;
 using AccelByte.Sdk.Core.Repository;
+using static System.String;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
 {
     public class AppSettingConfigRepository : IConfigRepository
     {
-        public string BaseUrl { get; set; } = String.Empty;
+        public string BaseUrl { get; set; } = Empty;
 
-        public string ClientId { get; set; } = String.Empty;
+        public string ClientId { get; set; } = Empty;
 
-        public string ClientSecret { get; set; } = String.Empty;
+        public string ClientSecret { get; set; } = Empty;
 
-        public string AppName { get; set; } = String.Empty;
+        public string AppName { get; set; } = Empty;
 
-        public string TraceIdVersion { get; set; } = String.Empty;
+        public string TraceIdVersion { get; set; } = Empty;
 
-        public string Namespace { get; set; } = String.Empty;
+        public string Namespace { get; set; } = Empty;
 
         public bool EnableTraceId { get; set; } = false;
 
@@ -36,19 +37,19 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
         public void ReadEnvironmentVariables()
         {
             string? abBaseUrl = Environment.GetEnvironmentVariable("AB_BASE_URL");
-            if ((abBaseUrl != null) && (abBaseUrl.Trim() != String.Empty))
+            if ((abBaseUrl != null) && (abBaseUrl.Trim() != Empty))
                 BaseUrl = abBaseUrl.Trim();
 
             string? abClientId = Environment.GetEnvironmentVariable("AB_CLIENT_ID");
-            if ((abClientId != null) && (abClientId.Trim() != String.Empty))
+            if ((abClientId != null) && (abClientId.Trim() != Empty))
                 ClientId = abClientId.Trim();
 
             string? abClientSecret = Environment.GetEnvironmentVariable("AB_CLIENT_SECRET");
-            if ((abClientSecret != null) && (abClientSecret.Trim() != String.Empty))
+            if ((abClientSecret != null) && (abClientSecret.Trim() != Empty))
                 ClientSecret = abClientSecret.Trim();
 
             string? abNamespace = Environment.GetEnvironmentVariable("AB_NAMESPACE");
-            if ((abNamespace != null) && (abNamespace.Trim() != String.Empty))
+            if ((abNamespace != null) && (abNamespace.Trim() != Empty))
                 Namespace = abNamespace.Trim();
 
             string? appServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME");
