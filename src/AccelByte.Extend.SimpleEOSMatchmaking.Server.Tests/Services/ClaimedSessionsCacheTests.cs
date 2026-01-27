@@ -22,7 +22,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             _mockLogger = new Mock<ILogger<InMemoryClaimedSessionsCache>>();
             _config = new EOSSessionFinderConfig
             {
-                ClaimedSessionExpirationSeconds = 2 // Short expiration for testing
+                ClaimedSessionExpirationSeconds = 1
             };
         }
 
@@ -80,8 +80,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             cache.AddClaimedSession(sessionId);
             Assert.True(cache.IsSessionClaimed(sessionId)); // Should be claimed initially
 
-            // Wait for expiration (config is set to 2 seconds)
-            await Task.Delay(TimeSpan.FromSeconds(2.5));
+            // Wait for expiration (config is set to 1 second)
+            await Task.Delay(TimeSpan.FromSeconds(_config.ClaimedSessionExpirationSeconds + 0.1));
 
             // RemoveExpiredEntries is called automatically by IsSessionClaimed
             var result = cache.IsSessionClaimed(sessionId);

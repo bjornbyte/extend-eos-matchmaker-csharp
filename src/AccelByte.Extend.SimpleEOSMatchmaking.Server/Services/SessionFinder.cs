@@ -200,7 +200,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 while (!tcs.Task.IsCompleted && (DateTime.UtcNow - startTime) < timeout)
                 {
                     _eosService.Tick();
-                    await Task.Delay(100);
+                    await Task.Delay(1); // Minimal delay - just yield to other tasks
                 }
 
                 if (!tcs.Task.IsCompleted)

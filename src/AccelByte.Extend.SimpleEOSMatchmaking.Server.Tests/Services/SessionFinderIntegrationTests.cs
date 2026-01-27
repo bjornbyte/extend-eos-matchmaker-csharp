@@ -177,8 +177,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             }
 
             // Wait for sessions to be indexed by EOS
-            _output.WriteLine("Waiting 10 seconds for EOS to index sessions...");
-            await Task.Delay(10000);
+            _output.WriteLine("Waiting 2 seconds for EOS to index sessions...");
+            await Task.Delay(2000);
 
             var claimedSessionIds = new List<string>();
 
@@ -324,8 +324,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             _output.WriteLine($"  Created session 2: {sessionId2}");
 
             // Wait for sessions to be indexed by EOS
-            _output.WriteLine("Waiting 10 seconds for EOS to index sessions...");
-            await Task.Delay(10000);
+            _output.WriteLine("Waiting 2 seconds for EOS to index sessions...");
+            await Task.Delay(2000);
 
             var requests1 = new List<MatchRequest>
             {
@@ -372,7 +372,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         /// Test 9.5: Verify cache expiration removes old entries
         /// Requirements: 2.4, 2.5
         /// </summary>
-        [Fact(Timeout = 45000)]
+        [Fact(Timeout = 20000)]
         [Trait("Category", "Integration")]
         public async Task GetSessionAsync_AfterCacheExpiration_ShouldAllowReclaimingSession()
         {
@@ -383,7 +383,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 return;
             }
 
-            // Arrange - Create session finder with short expiration time (5 seconds)
+            // Arrange - Create session finder with short expiration time (1 second)
             var loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.AddConsole();
@@ -396,7 +396,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             {
                 BucketId = _testBucketId, // Use unique bucket per test
                 MaxSearchResults = 10,
-                ClaimedSessionExpirationSeconds = 5 // 5 seconds for faster test
+                ClaimedSessionExpirationSeconds = 1 // 1 second for faster test
             };
 
             var cacheLogger = loggerFactory.CreateLogger<InMemoryClaimedSessionsCache>();
@@ -414,8 +414,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             _output.WriteLine($"  Created session: {sessionId}");
 
             // Wait for session to be indexed by EOS
-            _output.WriteLine("Waiting 10 seconds for EOS to index session...");
-            await Task.Delay(10000);
+            _output.WriteLine("Waiting 2 seconds for EOS to index session...");
+            await Task.Delay(2000);
 
             var requests1 = new List<MatchRequest>
             {
@@ -455,9 +455,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             Assert.NotNull(exception);
             _output.WriteLine($"✓ NoAvailableSessionsException thrown as expected (session still in cache)");
 
-            // Wait for cache expiration (5 seconds + buffer)
-            _output.WriteLine($"Waiting for cache expiration (6 seconds)...");
-            await Task.Delay(6000);
+            // Wait for cache expiration (1 second + buffer)
+            _output.WriteLine($"Waiting for cache expiration (1.5 seconds)...");
+            await Task.Delay(1500);
 
             // Verify session is removed from cache
             Assert.False(cache.IsSessionClaimed(sessionId));
@@ -467,6 +467,116 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // This test verifies that the cache expiration works correctly
             // In a real scenario, the session owner would have marked the session as started
             _output.WriteLine($"✓ Cache expiration test complete");
+        }
+
+        /// <summary>
+        /// Test: Measure actual EOS session indexing time
+        /// This test creates a session and polls for it to measure how long EOS takes to index it.
+        /// </summary>
+        [Fact(Timeout = 30000)]
+        [Trait("Category", "Integration")]
+        [Trait("Category", "Performance")]
+        public async Task MeasureEOSIndexingTime_CreateSessionAndPollUntilFound()
+        {
+            // Skip if EOS is not initialized
+            if (!_eosFixture.IsInitialized)
+            {
+                _output.WriteLine("Skipping test - EOS SDK not initialized. Check your .env file.");
+                return;
+            }
+
+            // Arrange
+            var sessionFinder = CreateSessionFinder();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            _output.WriteLine("=== EOS Session Indexing Time Measurement ===");
+            _output.WriteLine($"Bucket ID: {_testBucketId}");
+            _output.WriteLine("");
+
+            // Act - Create session
+            _output.WriteLine("Creating empty test session...");
+            var sessionCreationStart = stopwatch.ElapsedMilliseconds;
+            var sessionId = await _testHelper.CreateEmptySessionAsync(_testBucketId);
+            var sessionCreationTime = stopwatch.ElapsedMilliseconds - sessionCreationStart;
+            
+            _output.WriteLine($"✓ Session created: {sessionId}");
+            _output.WriteLine($"  Creation time: {sessionCreationTime}ms");
+            _output.WriteLine("");
+
+            // Poll for session until found
+            _output.WriteLine("Polling for session in search results...");
+            var pollingStart = stopwatch.ElapsedMilliseconds;
+            var pollCount = 0;
+            var maxPolls = 60; // Max 30 seconds (500ms intervals)
+            var pollInterval = 500; // 500ms
+            bool found = false;
+
+            var requests = new List<MatchRequest>
+            {
+                new MatchRequest("user-measure-1"),
+                new MatchRequest("user-measure-2")
+            };
+            var match = new Match(requests);
+
+            while (pollCount < maxPolls && !found)
+            {
+                pollCount++;
+                var pollStart = stopwatch.ElapsedMilliseconds;
+
+                try
+                {
+                    // Try to find and claim the session
+                    var sessionInfo = await sessionFinder.GetSessionAsync(match);
+                    
+                    if (sessionInfo != null && sessionInfo.SessionId == sessionId)
+                    {
+                        found = true;
+                        var totalIndexingTime = stopwatch.ElapsedMilliseconds - pollingStart;
+                        var pollTime = stopwatch.ElapsedMilliseconds - pollStart;
+                        
+                        _output.WriteLine($"✓ Session found on poll #{pollCount}!");
+                        _output.WriteLine($"  Poll time: {pollTime}ms");
+                        _output.WriteLine($"  Total indexing time: {totalIndexingTime}ms ({totalIndexingTime / 1000.0:F2}s)");
+                        _output.WriteLine("");
+                        _output.WriteLine("=== RESULTS ===");
+                        _output.WriteLine($"Session creation time: {sessionCreationTime}ms");
+                        _output.WriteLine($"EOS indexing time: {totalIndexingTime}ms ({totalIndexingTime / 1000.0:F2}s)");
+                        _output.WriteLine($"Total time: {stopwatch.ElapsedMilliseconds}ms ({stopwatch.ElapsedMilliseconds / 1000.0:F2}s)");
+                        _output.WriteLine($"Polls required: {pollCount}");
+                        break;
+                    }
+                }
+                catch (NoAvailableSessionsException ex)
+                {
+                    // Session not indexed yet
+                    var pollTime = stopwatch.ElapsedMilliseconds - pollStart;
+                    _output.WriteLine($"  Poll #{pollCount}: Not found yet (searched {ex.SessionsSearched} sessions, took {pollTime}ms)");
+                }
+
+                // Wait before next poll
+                await Task.Delay(pollInterval);
+            }
+
+            stopwatch.Stop();
+
+            // Assert
+            Assert.True(found, $"Session was not found after {pollCount} polls ({pollCount * pollInterval / 1000.0:F1}s). EOS indexing may be slower than expected.");
+
+            _output.WriteLine("");
+            _output.WriteLine("=== RECOMMENDATION ===");
+            var indexingTime = stopwatch.ElapsedMilliseconds - pollingStart - sessionCreationTime;
+            if (indexingTime < 3000)
+            {
+                _output.WriteLine($"✓ EOS indexing is fast ({indexingTime}ms). Consider reducing wait times in tests to 3-4 seconds.");
+            }
+            else if (indexingTime < 7000)
+            {
+                _output.WriteLine($"✓ EOS indexing is moderate ({indexingTime}ms). Current 10-second waits could be reduced to 7-8 seconds.");
+            }
+            else
+            {
+                _output.WriteLine($"⚠ EOS indexing is slow ({indexingTime}ms). Current 10-second waits are appropriate.");
+            }
         }
     }
 
