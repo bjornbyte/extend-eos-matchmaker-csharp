@@ -275,21 +275,9 @@ Navigate to `http://localhost:8000/matchmaking/apidocs/`
 
 ## Troubleshooting
 
-### Service Not Running
+### Authentication Issues
 
-**Symptom:**
-```
-Error: connect ECONNREFUSED 127.0.0.1:8000
-```
-
-**Solution:** Start the service with `docker compose up --build`
-
-### Authentication Failed
-
-**Symptom:**
-```
-401 Unauthorized
-```
+**Symptom:** `401 Unauthorized`
 
 **Solution:**
 - Check client_id and client_secret are correct
@@ -297,27 +285,31 @@ Error: connect ECONNREFUSED 127.0.0.1:8000
 - Verify user credentials (if using password grant)
 - Check token hasn't expired
 
-### Match Not Created
+### Permission Issues
 
-**Symptom:** Requests stay PENDING indefinitely
-
-**Solution:**
-- Ensure at least MatchSize (default: 2) requests are submitted
-- Check MatchMaker is running (view service logs)
-- Verify EOS credentials are valid
-- Check service logs for errors
-
-### Permission Denied
-
-**Symptom:**
-```
-403 Forbidden
-```
+**Symptom:** `403 Forbidden`
 
 **Solution:**
 - Verify test user has `NAMESPACE:{namespace}:MATCHMAKING [CREATE,READ,DELETE]` permissions
 - Check namespace matches your namespace
 - Regenerate access token after adding permissions
+
+### Service Connection Issues
+
+**Symptom:** `Error: connect ECONNREFUSED 127.0.0.1:8000`
+
+**Solution:** Start the service with `docker compose up --build`
+
+### Matching Issues
+
+**Symptom:** Requests stay PENDING indefinitely
+
+**Solution:**
+- Ensure at least MatchSize (default: 2) requests are submitted
+- Check MatchMaker is running (view service logs: `docker compose logs -f`)
+- Verify EOS credentials are valid in `.env` file
+
+For operational troubleshooting (monitoring, performance, multi-instance issues), see the **[Operations Guide](operations.md#troubleshooting)**.
 
 ---
 
@@ -325,16 +317,16 @@ Error: connect ECONNREFUSED 127.0.0.1:8000
 
 After successful testing:
 
-1. **Integration Testing**: Test with real game client
-2. **Load Testing**: Test with multiple concurrent requests
-3. **Monitoring**: Set up Grafana dashboards
-4. **Deployment**: Deploy to AGS using [Setup Guide](setup.md)
+1. **Monitoring**: Set up observability - see [Operations Guide](operations.md#observability)
+2. **Deployment**: Deploy to production - see [Setup Guide](setup.md)
+3. **Customization**: Extend the service - see [Architecture Guide](architecture.md#extension-points)
 
 ---
 
 ## Support
 
 For issues or questions:
-- Check service logs: `docker compose logs -f`
-- Review Swagger UI: `http://localhost:8000/matchmaking/apidocs/`
-- Check documentation: [README](../README.md)
+- **Testing issues**: See troubleshooting section above
+- **Operational issues**: See [Operations Guide](operations.md#troubleshooting)
+- **Service logs**: `docker compose logs -f`
+- **API documentation**: `http://localhost:8000/matchmaking/apidocs/`

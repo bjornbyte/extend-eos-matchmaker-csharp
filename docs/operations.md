@@ -4,91 +4,16 @@
 
 ---
 
-This guide covers testing, monitoring, error handling, troubleshooting, and development workflows for the Simple EOS Matchmaking Service.
+This guide covers monitoring, error handling, troubleshooting, and deployment considerations for the Simple EOS Matchmaking Service.
 
 ## Testing
 
-### Local Testing with Swagger UI
+For comprehensive testing instructions, see the **[Testing Guide](testing_guide.md)**.
 
-The recommended way to test the service is using Swagger UI.
-
-1. **Run the service:**
-   ```bash
-   docker compose up --build
-   ```
-
-2. **Get an access token:**
-   
-   Use [demo/get-access-token.postman_collection.json](../demo/get-access-token.postman_collection.json) to obtain a token.
-   
-   Required Postman environment variables:
-   - `AB_BASE_URL`: https://test.accelbyte.io
-   - `AB_CLIENT_ID`: Your OAuth client ID
-   - `AB_CLIENT_SECRET`: Your OAuth client secret
-   - `AB_USERNAME`: Test user email
-   - `AB_PASSWORD`: Test user password
-
-3. **Access Swagger UI:**
-   
-   Open `http://localhost:8000/matchmaking/apidocs/`
-   
-   > The URL path depends on your `BASE_PATH` setting.
-
-4. **Authorize Swagger UI:**
-   
-   Click "Authorize" button and enter:
-   ```
-   Bearer <your_access_token>
-   ```
-
-5. **Test Endpoints:**
-   - `POST /matchmaking/v1/request` - Submit match request
-   - `GET /matchmaking/v1/request/{request_id}` - Get match status
-   - `DELETE /matchmaking/v1/request/{request_id}` - Cancel match request
-
-### Complete Matchmaking Flow
-
-Here's a typical matchmaking flow to test:
-
-1. **Submit Match Requests** - Have 2 or more players submit requests
-   ```
-   POST /matchmaking/v1/request
-   Body: { "metadata": { "region": "us-west" } }
-   ```
-   Each player receives a unique `request_id`
-
-2. **Check Status** - Query the status
-   ```
-   GET /matchmaking/v1/request/{request_id}
-   ```
-   Status will be "PENDING" initially
-
-3. **Wait for Match** - The background matcher runs every second
-   - When enough players are in the pool, they are automatically matched
-   - An EOS session is created
-   - Request status changes to "MATCHED"
-
-4. **Get Match Details** - Query again to get session information
-   ```
-   GET /matchmaking/v1/request/{request_id}
-   ```
-   Response includes `session_id` and matched player information
-
-5. **Cancel Request** (Optional) - Cancel a pending request
-   ```
-   DELETE /matchmaking/v1/request/{request_id}
-   ```
-   Only works for pending requests
-
-### Running Unit Tests
-
-The project includes comprehensive unit tests:
-
-```bash
-dotnet test src/extend-service-extension-server.sln
-```
-
-All tests should pass before deployment.
+Quick reference:
+- **Swagger UI**: `http://localhost:8000/matchmaking/apidocs/`
+- **Unit Tests**: `dotnet test src/extend-service-extension-server.sln`
+- **Get Access Token**: Use `demo/get-access-token.postman_collection.json`
 
 ---
 
@@ -841,45 +766,53 @@ Use log aggregation to view logs from all instances:
 
 ## Troubleshooting
 
-### Service Won't Start
+### Common Issues
 
-**Symptom:** Service fails to start with configuration error
-
-**Solution:**
+**Service Won't Start:**
 - Check `.env` file has all required variables
 - Verify EOS credentials are correct
-- Check Docker is running
 - Review service logs: `docker compose logs -f`
 
-### Match Requests Not Matching
-
-**Symptom:** Requests stay in PENDING status
-
-**Solution:**
-- Check MatchMaker is running (should see tick logs)
+**Match Requests Not Matching:**
 - Verify enough requests in pool (need >= MatchSize)
-- Check EOS credentials are valid
+- Check MatchMaker is running (should see tick logs every second)
 - Review MatchMaker logs for errors
 
-### EOS Session Creation Fails
-
-**Symptom:** Requests return to pool, no matches created
-
-**Solution:**
+**EOS Session Creation Fails:**
 - Verify EOS Product, Sandbox, Deployment exist
 - Check EOS Client ID and Secret are valid
-- Ensure EOS SDK initialized successfully
 - Check service logs for EOS error codes
 
-### Permission Denied
-
-**Symptom:** 403 Forbidden errors
-
-**Solution:**
+**Permission Denied (403):**
 - Verify OAuth client has required permissions
 - Check token is valid and not expired
-- Ensure namespace matches request
 - Regenerate access token
+
+For detailed testing troubleshooting, see the **[Testing Guide](testing_guide.md#troubleshooting)**.
+
+### Observability-Based Troubleshooting
+
+**High Latency:**
+1. Check Zipkin traces to identify slow spans
+2. Look for slow EOS SDK calls
+3. Check if pool operations are slow (consider distributed storage)
+
+**High Error Rate:**
+1. Check logs for error messages
+2. Use Zipkin to trace failed requests
+3. Check EOS session creation failure rate metric
+
+**Requests Not Matching:**
+1. Check `matchmaking_pool_size` metric (is pool growing?)
+2. Check logs for MatchMaker tick events
+3. Verify MatchSize configuration
+4. Check for EOS session creation failures
+
+**Memory Issues:**
+1. Check pool size metric (is it growing unbounded?)
+2. Check completed request store size
+3. Verify expiration is working (check logs)
+4. Consider implementing distributed storage
 
 ---
 
