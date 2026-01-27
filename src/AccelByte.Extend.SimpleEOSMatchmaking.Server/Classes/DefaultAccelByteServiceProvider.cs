@@ -34,10 +34,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 .UseDefaultCredentialRepository()
                 .UseDefaultHttpClient()
                 .UseDefaultTokenRepository()
-                .UseAutoTokenRefresh()
+                .UseOnDemandTokenRefresh()
                 .Build();
 
-            Sdk.LoginClient(true);
+            Sdk.LoginClient();
         }
     }
 }

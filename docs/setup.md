@@ -123,7 +123,7 @@ EOS_CLIENT_SECRET=your-eos-client-secret
 BASE_PATH=/matchmaking
 
 # Optional - only set if changing defaults
-PLUGIN_GRPC_SERVER_AUTH_ENABLED=true
+# ENABLEAUTHORIZATION=false
 
 # Optional - can also configure in appsettings.json
 # MATCHMAKER__MATCHSIZE=2
@@ -181,7 +181,7 @@ ASP.NET Core's `WebApplication.CreateBuilder(args)` automatically loads environm
 | `EOS_CLIENT_ID` | ✅ Yes | - | EOS client ID | Same as above |
 | `EOS_CLIENT_SECRET` | ✅ Yes | - | EOS client secret | Same as above |
 | **Service Configuration** |||||
-| `PLUGIN_GRPC_SERVER_AUTH_ENABLED` | No | `true` | Enable/disable authorization | Set to `false` for local testing only. ⚠️ Never disable in production |
+| `ENABLEAUTHORIZATION` | No | `true` | Enable/disable authorization | Set to `false` for local testing only. ⚠️ Never disable in production |
 | `BASE_PATH` | ✅ Yes | - | Service URL path prefix (e.g., `/matchmaking`) | Used by gateway for routing. Must start with `/`. Affects all endpoints |
 | **Observability Configuration** |||||
 | `OTEL_SERVICE_NAME` | No | `extend-app-service-extension` | Service name for OpenTelemetry tracing | Used to identify this service in distributed traces. Automatically prefixed with `extend-app-` |

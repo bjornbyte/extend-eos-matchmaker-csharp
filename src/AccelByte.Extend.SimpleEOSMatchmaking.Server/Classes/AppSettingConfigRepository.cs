@@ -56,11 +56,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 ServiceName = "extend-app-service-extension";
             else
                 ServiceName = $"extend-app-{appServiceName.Trim().ToLower()}";
-
-            string? appResourceName = Environment.GetEnvironmentVariable("APP_RESOURCE_NAME");
-            if (appResourceName == null)
-                appResourceName = "SERVICEEXTENSIONEXTENDAPP";
-            ResourceName = appResourceName;
         }
     }
 }

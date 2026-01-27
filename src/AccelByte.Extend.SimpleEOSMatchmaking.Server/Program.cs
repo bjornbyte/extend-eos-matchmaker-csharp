@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 
@@ -21,10 +22,11 @@ using OpenTelemetry.Extensions.Propagators;
 using Prometheus;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Services;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
+using Microsoft.IdentityModel.Tokens;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
 {
-    public class Program
+    public static class Program
     {
         public static int Main(string[] args)
         {
@@ -33,7 +35,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             {
                 Path.Combine(Directory.GetCurrentDirectory(), ".env"),
                 Path.Combine(AppContext.BaseDirectory, ".env"),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".env")
             };
 
             foreach (var envPath in possibleEnvPaths)
@@ -60,20 +61,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             });
 
             var builder = WebApplication.CreateBuilder(args);
-            builder.Configuration.AddEnvironmentVariables("ABSERVER_");
             builder.WebHost.ConfigureKestrel(opt =>
             {
                 opt.AllowAlternateSchemes = true;
             });
 
-            string? appResourceName = Environment.GetEnvironmentVariable("APP_RESOURCE_NAME");
-            if (appResourceName == null)
+            string? appResourceName = builder.Configuration.GetValue<string>("AccelByte:ResourceName");
+            if (appResourceName.IsNullOrEmpty())
                 appResourceName = "SERVICEEXTENSIONEXTENDAPP";
 
             bool enableAuthorization = builder.Configuration.GetValue<bool>("EnableAuthorization");
-            string? strEnableAuth = Environment.GetEnvironmentVariable("PLUGIN_GRPC_SERVER_AUTH_ENABLED");
-            if ((strEnableAuth != null) && (strEnableAuth != String.Empty))
-                enableAuthorization = (strEnableAuth.Trim().ToLower() == "true");
 
             // Configure MatchMaker settings
             var matchMakerConfig = new MatchMakerConfig();
@@ -100,17 +97,17 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 
                 // INFRASTRUCTURE EXTENSION POINT: IMatchPool
                 // Default: In-memory implementation (MatchPool) - suitable for single-instance deployments only.
-                // For multi-instance deployments, replace with distributed implementation (Redis, database).
+                // For multi-instance deployments, replace it with a distributed, persistent implementation.
                 // See docs/architecture.md#extension-points for examples.
                 .AddSingleton<IMatchPool, MatchPool>()
                 
                 // INFRASTRUCTURE EXTENSION POINT: ICompletedRequestStore
                 // Default: In-memory implementation (CompletedRequestStore) - data lost on service restart.
-                // For durability across restarts, replace with persistent implementation (database).
+                // For durability across restarts, replace it with a distributed, persistent implementation.
                 // See docs/architecture.md#extension-points for examples.
                 .AddSingleton<ICompletedRequestStore, CompletedRequestStore>();
 
-            // Register session provider based on configuration
+            // Register a session provider based on configuration
             if (sessionProviderConfig.Mode == "create")
             {
                 // APPLICATION EXTENSION POINT: ISessionCreator (Create Mode)
@@ -190,7 +187,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
             });
             builder.Services.AddGrpcReflection();
             
-            // Register MatchmakingService with completed store
+            // Register MatchmakingService
             builder.Services.AddSingleton<MatchmakingService>();
 
             var app = builder.Build();

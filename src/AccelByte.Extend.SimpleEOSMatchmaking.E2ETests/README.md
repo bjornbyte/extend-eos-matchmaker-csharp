@@ -74,7 +74,7 @@ dotnet test
 
 ### UserId Mode (Auth Disabled)
 
-When the service is running with `PLUGIN_GRPC_SERVER_AUTH_ENABLED=false`, tests use the `grpc-metadata-user-id` header:
+When the service is running with `ENABLEAUTHORIZATION=false`, tests use the `grpc-metadata-user-id` header:
 
 ```csharp
 // Automatically configured by MatchmakingHttpClient
@@ -83,7 +83,7 @@ headers.Add("grpc-metadata-user-id", "test-user-1");
 
 ### Bearer Mode (Auth Enabled)
 
-When the service is running with `PLUGIN_GRPC_SERVER_AUTH_ENABLED=true`, tests use the `Authorization` header:
+When the service is running with `ENABLEAUTHORIZATION=true` (default), tests use the `Authorization` header:
 
 ```csharp
 // Automatically configured by MatchmakingHttpClient
@@ -143,7 +143,7 @@ HttpRequestException: Response status code does not indicate success: 401 (Unaut
 
 **Solution:** 
 - If using Bearer mode, ensure `E2E_BEARER_TOKEN` is set and valid
-- If using UserId mode, ensure `PLUGIN_GRPC_SERVER_AUTH_ENABLED=false` in service `.env`
+- If using UserId mode, ensure `ENABLEAUTHORIZATION=false` in service `.env`
 
 ### Tests Timing Out
 
