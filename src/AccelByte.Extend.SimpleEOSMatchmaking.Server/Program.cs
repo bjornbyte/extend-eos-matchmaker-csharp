@@ -114,7 +114,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 // Default: EOSSessionCreator - creates new EOS sessions for each match.
                 // Customize this if you need different session creation logic or use a different backend.
                 // See docs/architecture.md#session-provider-modes for mode selection guidance.
-                builder.Services.AddSingleton<ISessionCreator, EOSSessionCreator>();
+                builder.Services.AddSingleton<ISessionCreator, EosSessionCreator>();
             }
             else // "find"
             {
@@ -140,7 +140,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server
                 // Default: EOSSessionFinder - finds and claims existing EOS sessions.
                 // Customize this if you need different session finding logic or use a different backend.
                 // See docs/architecture.md#session-provider-modes for mode selection guidance.
-                builder.Services.AddSingleton<ISessionCreator, EOSSessionFinder>();
+                builder.Services.AddSingleton<ISessionCreator, EosSessionFinder>();
             }
 
             builder.Services

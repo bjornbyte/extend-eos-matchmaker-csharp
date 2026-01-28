@@ -84,18 +84,18 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// </summary>
     public class MatchPool : IMatchPool
     {
-        private readonly object _lock = new object();
-        private readonly Dictionary<string, MatchRequest> _requestsById = new Dictionary<string, MatchRequest>();
-        private readonly Dictionary<string, MatchRequest> _requestsByUserId = new Dictionary<string, MatchRequest>();
-        private readonly List<MatchRequest> _requestsInOrder = new List<MatchRequest>();
+        private readonly object Lock = new object();
+        private readonly Dictionary<string, MatchRequest> RequestsById = new Dictionary<string, MatchRequest>();
+        private readonly Dictionary<string, MatchRequest> RequestsByUserId = new Dictionary<string, MatchRequest>();
+        private readonly List<MatchRequest> RequestsInOrder = new List<MatchRequest>();
 
         public int Count
         {
             get
             {
-                lock (_lock)
+                lock (Lock)
                 {
-                    return _requestsById.Count;
+                    return RequestsById.Count;
                 }
             }
         }
@@ -105,11 +105,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
 
-            lock (_lock)
+            lock (Lock)
             {
-                _requestsById[request.RequestId] = request;
-                _requestsByUserId[request.UserId] = request;
-                _requestsInOrder.Add(request);
+                RequestsById[request.RequestId] = request;
+                RequestsByUserId[request.UserId] = request;
+                RequestsInOrder.Add(request);
             }
         }
 
@@ -118,14 +118,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (string.IsNullOrEmpty(requestId))
                 return null;
 
-            lock (_lock)
+            lock (Lock)
             {
-                if (!_requestsById.TryGetValue(requestId, out var request))
+                if (!RequestsById.TryGetValue(requestId, out var request))
                     return null;
 
-                _requestsById.Remove(requestId);
-                _requestsByUserId.Remove(request.UserId);
-                _requestsInOrder.Remove(request);
+                RequestsById.Remove(requestId);
+                RequestsByUserId.Remove(request.UserId);
+                RequestsInOrder.Remove(request);
 
                 return request;
             }
@@ -136,9 +136,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (string.IsNullOrEmpty(requestId))
                 return null;
 
-            lock (_lock)
+            lock (Lock)
             {
-                _requestsById.TryGetValue(requestId, out var request);
+                RequestsById.TryGetValue(requestId, out var request);
                 return request;
             }
         }
@@ -148,9 +148,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (string.IsNullOrEmpty(userId))
                 return null;
 
-            lock (_lock)
+            lock (Lock)
             {
-                _requestsByUserId.TryGetValue(userId, out var request);
+                RequestsByUserId.TryGetValue(userId, out var request);
                 return request;
             }
         }
@@ -160,9 +160,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (count <= 0)
                 return new List<MatchRequest>();
 
-            lock (_lock)
+            lock (Lock)
             {
-                return _requestsInOrder
+                return RequestsInOrder
                     .OrderBy(r => r.CreatedAt)
                     .Take(count)
                     .ToList();
@@ -174,10 +174,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             var expiredRequests = new List<MatchRequest>();
             var cutoffTime = DateTime.UtcNow - timeout;
 
-            lock (_lock)
+            lock (Lock)
             {
                 // Find expired requests
-                var toRemove = _requestsInOrder
+                var toRemove = RequestsInOrder
                     .Where(r => r.CreatedAt < cutoffTime)
                     .ToList();
 
@@ -185,9 +185,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 foreach (var request in toRemove)
                 {
                     request.Status = Model.MatchRequestStatus.Expired;
-                    _requestsById.Remove(request.RequestId);
-                    _requestsByUserId.Remove(request.UserId);
-                    _requestsInOrder.Remove(request);
+                    RequestsById.Remove(request.RequestId);
+                    RequestsByUserId.Remove(request.UserId);
+                    RequestsInOrder.Remove(request);
                     expiredRequests.Add(request);
                 }
             }

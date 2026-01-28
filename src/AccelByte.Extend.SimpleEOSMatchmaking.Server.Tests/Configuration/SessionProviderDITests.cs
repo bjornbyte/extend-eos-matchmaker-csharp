@@ -36,7 +36,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
             
             if (sessionProviderConfig.Mode == "create")
             {
-                services.AddSingleton<ISessionCreator, EOSSessionCreator>();
+                services.AddSingleton<ISessionCreator, EosSessionCreator>();
             }
 
             var serviceProvider = services.BuildServiceProvider();
@@ -44,7 +44,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
             // Assert
             var sessionCreator = serviceProvider.GetService<ISessionCreator>();
             Assert.NotNull(sessionCreator);
-            Assert.IsType<EOSSessionCreator>(sessionCreator);
+            Assert.IsType<EosSessionCreator>(sessionCreator);
         }
 
         [Fact]
@@ -71,7 +71,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
                 services.AddSingleton(finderConfig);
                 services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
                 services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
-                services.AddSingleton<ISessionCreator, EOSSessionFinder>();
+                services.AddSingleton<ISessionCreator, EosSessionFinder>();
             }
 
             var serviceProvider = services.BuildServiceProvider();
@@ -79,7 +79,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
             // Assert
             var sessionCreator = serviceProvider.GetService<ISessionCreator>();
             Assert.NotNull(sessionCreator);
-            Assert.IsType<EOSSessionFinder>(sessionCreator);
+            Assert.IsType<EosSessionFinder>(sessionCreator);
         }
 
         [Fact]
@@ -106,7 +106,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
                 services.AddSingleton(finderConfig);
                 services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
                 services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
-                services.AddSingleton<ISessionCreator, EOSSessionFinder>();
+                services.AddSingleton<ISessionCreator, EosSessionFinder>();
             }
 
             var serviceProvider = services.BuildServiceProvider();
@@ -141,7 +141,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Configuration
                 services.AddSingleton(finderConfig);
                 services.AddSingleton<IClaimedSessionsCache, InMemoryClaimedSessionsCache>();
                 services.AddSingleton<ISessionOwnerNotifier, StubSessionOwnerNotifier>();
-                services.AddSingleton<ISessionCreator, EOSSessionFinder>();
+                services.AddSingleton<ISessionCreator, EosSessionFinder>();
             }
 
             var serviceProvider = services.BuildServiceProvider();

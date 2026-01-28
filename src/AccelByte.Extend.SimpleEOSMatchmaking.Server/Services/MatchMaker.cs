@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// Configuration for the match maker
+    /// Configuration for the matchmaker
     /// </summary>
     public class MatchMakerConfig
     {
@@ -42,51 +42,54 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// <summary>
     /// Background service that periodically checks the pool and creates matches
     /// </summary>
-    public class MatchMaker : IHostedService
+    public class MatchMaker(
+        IMatchPool matchPool,
+        ISessionCreator sessionCreator,
+        IPlayerNotifier notifier,
+        ICompletedRequestStore completedRequestStore,
+        MatchMakerConfig config,
+        ILogger<MatchMaker> logger)
+        : IHostedService
     {
-        private readonly IMatchPool _matchPool;
-        private readonly ISessionCreator _sessionCreator;
-        private readonly IPlayerNotifier _notifier;
-        private readonly ICompletedRequestStore _completedRequestStore;
-        private readonly MatchMakerConfig _config;
-        private readonly ILogger<MatchMaker> _logger;
-        private Timer? _timer;
-
-        public MatchMaker(
-            IMatchPool matchPool,
-            ISessionCreator sessionCreator,
-            IPlayerNotifier notifier,
-            ICompletedRequestStore completedRequestStore,
-            MatchMakerConfig config,
-            ILogger<MatchMaker> logger)
-        {
-            _matchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
-            _sessionCreator = sessionCreator ?? throw new ArgumentNullException(nameof(sessionCreator));
-            _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
-            _completedRequestStore = completedRequestStore ?? throw new ArgumentNullException(nameof(completedRequestStore));
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        }
+        private readonly IMatchPool MatchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
+        private readonly ISessionCreator SessionCreator = sessionCreator ?? throw new ArgumentNullException(nameof(sessionCreator));
+        private readonly IPlayerNotifier Notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
+        private readonly ICompletedRequestStore CompletedRequestStore = completedRequestStore ?? throw new ArgumentNullException(nameof(completedRequestStore));
+        private readonly MatchMakerConfig Config = config ?? throw new ArgumentNullException(nameof(config));
+        private readonly ILogger<MatchMaker> Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        private Timer? Timer;
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("MatchMaker starting with MatchSize={MatchSize}, TickInterval={TickInterval}, RequestTimeout={RequestTimeout}",
-                _config.MatchSize, _config.TickInterval, _config.RequestTimeout);
+            Logger.LogInformation("MatchMaker starting with MatchSize={MatchSize}, TickInterval={TickInterval}, RequestTimeout={RequestTimeout}",
+                Config.MatchSize, Config.TickInterval, Config.RequestTimeout);
 
-            _timer = new Timer(
-                async _ => await TryMatchAsync(),
+            Timer = new Timer(
+                DoMatchmaking,
                 null,
                 TimeSpan.Zero,
-                _config.TickInterval);
+                Config.TickInterval);
 
             return Task.CompletedTask;
         }
 
+        private async void DoMatchmaking(object? _)
+        {
+            try
+            {
+                await TryMatchAsync();
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, "Error in MatchMaker");
+            }
+        }
+
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("MatchMaker stopping");
-            _timer?.Change(Timeout.Infinite, 0);
-            _timer?.Dispose();
+            Logger.LogInformation("MatchMaker stopping");
+            Timer?.Change(Timeout.Infinite, 0);
+            Timer?.Dispose();
             return Task.CompletedTask;
         }
 
@@ -97,28 +100,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         /// The default implementation uses a simple FIFO (First-In-First-Out) algorithm
         /// that matches the oldest N requests together.
         /// 
-        /// COMMON CUSTOMIZATIONS:
+        /// You can customize this method to implement different matching strategies such as
+        /// skill-based matching, region-based matching, role-based matching, or party/group matching.
         /// 
-        /// 1. SKILL-BASED MATCHING:
-        ///    - Add skill/MMR metadata to MatchRequest
-        ///    - Filter requests by skill range before matching
-        ///    - Example: var skillFiltered = _matchPool.GetAll().Where(r => Math.Abs(r.Metadata["mmr"] - avgMmr) < 200);
-        /// 
-        /// 2. REGION-BASED MATCHING:
-        ///    - Add region metadata to MatchRequest
-        ///    - Group requests by region before matching
-        ///    - Example: var regionRequests = _matchPool.GetAll().Where(r => r.Metadata["region"] == "us-west");
-        /// 
-        /// 3. ROLE-BASED MATCHING (team games):
-        ///    - Add role metadata (tank, healer, dps)
-        ///    - Ensure balanced team composition
-        ///    - Example: Select 1 tank, 1 healer, 2 dps
-        /// 
-        /// 4. PARTY/GROUP MATCHING:
-        ///    - Add party_id metadata to keep friends together
-        ///    - Match parties as units rather than individual players
-        /// 
-        /// See docs/architecture.md#matchmaker-customization for complete examples.
+        /// See docs/examples.md for complete implementation examples.
         /// </summary>
         public async Task<IReadOnlyList<Match>> TryMatchAsync()
         {
@@ -127,24 +112,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             try
             {
                 // Clean up expired completed requests
-                var expiredCompleted = _completedRequestStore.RemoveExpired(_config.RetentionPeriod);
+                var expiredCompleted = CompletedRequestStore.RemoveExpired(Config.RetentionPeriod);
                 if (expiredCompleted.Count > 0)
                 {
-                    _logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
+                    Logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
                 }
 
                 // Remove expired requests first
-                var expiredRequests = _matchPool.RemoveExpired(_config.RequestTimeout);
+                var expiredRequests = MatchPool.RemoveExpired(Config.RequestTimeout);
                 if (expiredRequests.Count > 0)
                 {
-                    _logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
+                    Logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
                     
                     // Move expired requests to completed store
                     foreach (var expiredRequest in expiredRequests)
                     {
                         expiredRequest.Status = Model.MatchRequestStatus.Expired;
                         expiredRequest.CompletedAt = DateTime.UtcNow;
-                        _completedRequestStore.Add(expiredRequest);
+                        CompletedRequestStore.Add(expiredRequest);
                     }
                 }
 
@@ -158,14 +143,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 // - Role-based: Ensure team composition (tank, healer, dps)
                 //
                 // Check if we have enough requests to make a match
-                while (_matchPool.Count >= _config.MatchSize)
+                while (MatchPool.Count >= Config.MatchSize)
                 {
                     // CUSTOMIZATION POINT: Add filtering logic here
                     // Example: var eligibleRequests = _matchPool.GetAll().Where(r => r.Metadata["region"] == targetRegion);
                     
                     // Get the oldest requests (FIFO)
-                    var oldestRequests = _matchPool.GetOldest(_config.MatchSize);
-                    if (oldestRequests.Count < _config.MatchSize)
+                    var oldestRequests = MatchPool.GetOldest(Config.MatchSize);
+                    if (oldestRequests.Count < Config.MatchSize)
                     {
                         break;
                     }
@@ -174,7 +159,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     var requestsForMatch = new List<MatchRequest>();
                     foreach (var request in oldestRequests)
                     {
-                        var removed = _matchPool.Remove(request.RequestId);
+                        var removed = MatchPool.Remove(request.RequestId);
                         if (removed != null)
                         {
                             requestsForMatch.Add(removed);
@@ -182,15 +167,15 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     }
 
                     // Verify we got all the requests
-                    if (requestsForMatch.Count != _config.MatchSize)
+                    if (requestsForMatch.Count != Config.MatchSize)
                     {
-                        _logger.LogWarning("Failed to remove all requests for match, expected {Expected}, got {Actual}",
-                            _config.MatchSize, requestsForMatch.Count);
+                        Logger.LogWarning("Failed to remove all requests for match, expected {Expected}, got {Actual}",
+                            Config.MatchSize, requestsForMatch.Count);
                         
                         // Return requests to pool
                         foreach (var request in requestsForMatch)
                         {
-                            _matchPool.Add(request);
+                            MatchPool.Add(request);
                         }
                         break;
                     }
@@ -201,7 +186,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     try
                     {
                         // Get session
-                        var sessionInfo = await _sessionCreator.GetSessionAsync(match);
+                        var sessionInfo = await SessionCreator.GetSessionAsync(match);
 
                         // Update request statuses
                         foreach (var request in requestsForMatch)
@@ -215,25 +200,25 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         // Move matched requests to completed store
                         foreach (var request in requestsForMatch)
                         {
-                            _completedRequestStore.Add(request);
+                            CompletedRequestStore.Add(request);
                         }
 
                         // Notify
-                        await _notifier.NotifyMatchAsync(sessionInfo);
+                        await Notifier.NotifyMatchAsync(sessionInfo);
 
                         matches.Add(match);
 
-                        _logger.LogInformation("Created match {MatchId} with {PlayerCount} players, SessionId={SessionId}",
+                        Logger.LogInformation("Created match {MatchId} with {PlayerCount} players, SessionId={SessionId}",
                             match.MatchId, requestsForMatch.Count, sessionInfo.SessionId);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to create session for match {MatchId}, returning requests to pool", match.MatchId);
+                        Logger.LogError(ex, "Failed to create session for match {MatchId}, returning requests to pool", match.MatchId);
                         
                         // Return requests to pool on failure
                         foreach (var request in requestsForMatch)
                         {
-                            _matchPool.Add(request);
+                            MatchPool.Add(request);
                         }
                         
                         // Break out of loop to avoid infinite retry
@@ -243,7 +228,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in TryMatchAsync");
+                Logger.LogError(ex, "Error in TryMatchAsync");
             }
 
             return matches;

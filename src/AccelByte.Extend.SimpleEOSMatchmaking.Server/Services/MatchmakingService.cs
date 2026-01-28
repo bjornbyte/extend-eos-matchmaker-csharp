@@ -14,18 +14,18 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// </summary>
     public class MatchmakingService : AccelByte.Extend.SimpleEOSMatchmaking.Matchmaking.MatchmakingBase
     {
-        private readonly IMatchPool _matchPool;
-        private readonly ICompletedRequestStore _completedRequestStore;
-        private readonly ILogger<MatchmakingService> _logger;
+        private readonly IMatchPool MatchPool;
+        private readonly ICompletedRequestStore CompletedRequestStore;
+        private readonly ILogger<MatchmakingService> Logger;
 
         public MatchmakingService(
             IMatchPool matchPool, 
             ICompletedRequestStore completedRequestStore,
             ILogger<MatchmakingService> logger)
         {
-            _matchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
-            _completedRequestStore = completedRequestStore ?? throw new ArgumentNullException(nameof(completedRequestStore));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            MatchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
+            CompletedRequestStore = completedRequestStore ?? throw new ArgumentNullException(nameof(completedRequestStore));
+            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -39,10 +39,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             string userId = ExtractUserIdFromContext(context);
 
             // Check for duplicate request
-            var existingRequest = _matchPool.GetByUserId(userId);
+            var existingRequest = MatchPool.GetByUserId(userId);
             if (existingRequest != null)
             {
-                _logger.LogWarning("User {UserId} already has a pending match request: {RequestId}", 
+                Logger.LogWarning("User {UserId} already has a pending match request: {RequestId}", 
                     userId, existingRequest.RequestId);
                 
                 throw new RpcException(new Status(
@@ -55,9 +55,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             var matchRequest = new MatchRequest(userId, metadata);
 
             // Add to pool
-            _matchPool.Add(matchRequest);
+            MatchPool.Add(matchRequest);
 
-            _logger.LogInformation("Created match request {RequestId} for user {UserId}", 
+            Logger.LogInformation("Created match request {RequestId} for user {UserId}", 
                 matchRequest.RequestId, userId);
 
             return await Task.FromResult(new AccelByte.Extend.SimpleEOSMatchmaking.SubmitMatchRequestResponse
@@ -74,17 +74,17 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             ServerCallContext context)
         {
             // Lookup request in pool first
-            var matchRequest = _matchPool.Get(request.RequestId);
+            var matchRequest = MatchPool.Get(request.RequestId);
             
             // If not in pool, check completed store
             if (matchRequest == null)
             {
-                matchRequest = _completedRequestStore.Get(request.RequestId);
+                matchRequest = CompletedRequestStore.Get(request.RequestId);
             }
             
             if (matchRequest == null)
             {
-                _logger.LogWarning("Match request not found: {RequestId}", request.RequestId);
+                Logger.LogWarning("Match request not found: {RequestId}", request.RequestId);
                 throw new RpcException(new Status(StatusCode.NotFound, "Match request not found"));
             }
 
@@ -115,17 +115,17 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             ServerCallContext context)
         {
             // Lookup request
-            var matchRequest = _matchPool.Get(request.RequestId);
+            var matchRequest = MatchPool.Get(request.RequestId);
             if (matchRequest == null)
             {
-                _logger.LogWarning("Match request not found for cancellation: {RequestId}", request.RequestId);
+                Logger.LogWarning("Match request not found for cancellation: {RequestId}", request.RequestId);
                 throw new RpcException(new Status(StatusCode.NotFound, "Match request not found"));
             }
 
             // Validate pending status
             if (matchRequest.Status != Model.MatchRequestStatus.Pending)
             {
-                _logger.LogWarning("Cannot cancel non-pending request {RequestId} with status {Status}", 
+                Logger.LogWarning("Cannot cancel non-pending request {RequestId} with status {Status}", 
                     request.RequestId, matchRequest.Status);
                 
                 throw new RpcException(new Status(
@@ -134,16 +134,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             }
 
             // Remove from pool
-            var removed = _matchPool.Remove(request.RequestId);
+            var removed = MatchPool.Remove(request.RequestId);
             if (removed != null)
             {
                 removed.Status = Model.MatchRequestStatus.Cancelled;
                 removed.CompletedAt = DateTime.UtcNow;
                 
                 // Move to completed store
-                _completedRequestStore.Add(removed);
+                CompletedRequestStore.Add(removed);
                 
-                _logger.LogInformation("Cancelled match request {RequestId}", request.RequestId);
+                Logger.LogInformation("Cancelled match request {RequestId}", request.RequestId);
             }
 
             return await Task.FromResult(new AccelByte.Extend.SimpleEOSMatchmaking.CancelMatchRequestResponse

@@ -56,11 +56,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// </summary>
     public class LoggingPlayerNotifier : IPlayerNotifier
     {
-        private readonly ILogger<LoggingPlayerNotifier> _logger;
+        private readonly ILogger<LoggingPlayerNotifier> Logger;
 
         public LoggingPlayerNotifier(ILogger<LoggingPlayerNotifier> logger)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public Task NotifyMatchAsync(SessionInfo sessionInfo)
@@ -68,7 +68,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (sessionInfo == null)
                 throw new ArgumentNullException(nameof(sessionInfo));
 
-            _logger.LogInformation(
+            Logger.LogInformation(
                 "Match created: SessionId={SessionId}, Users={Users}",
                 sessionInfo.SessionId,
                 string.Join(",", sessionInfo.UserIds));

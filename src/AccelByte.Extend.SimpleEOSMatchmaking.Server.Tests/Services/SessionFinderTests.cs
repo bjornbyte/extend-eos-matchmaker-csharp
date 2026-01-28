@@ -21,13 +21,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public void Constructor_WithValidDependencies_CreatesInstance()
         {
             // Arrange
-            var logger = new Mock<ILogger<EOSSessionFinder>>();
+            var logger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var cache = new Mock<IClaimedSessionsCache>();
             var notifier = new Mock<ISessionOwnerNotifier>();
 
             // Act
-            var finder = new EOSSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
+            var finder = new EosSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
 
             // Assert
             Assert.NotNull(finder);
@@ -37,13 +37,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public void EOSSessionFinder_ImplementsISessionCreator()
         {
             // Arrange
-            var logger = new Mock<ILogger<EOSSessionFinder>>();
+            var logger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var cache = new Mock<IClaimedSessionsCache>();
             var notifier = new Mock<ISessionOwnerNotifier>();
 
             // Act
-            var finder = new EOSSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
+            var finder = new EosSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
 
             // Assert
             Assert.IsAssignableFrom<ISessionCreator>(finder);
@@ -53,11 +53,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task GetSessionAsync_MethodExists()
         {
             // Arrange
-            var logger = new Mock<ILogger<EOSSessionFinder>>();
+            var logger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var cache = new Mock<IClaimedSessionsCache>();
             var notifier = new Mock<ISessionOwnerNotifier>();
-            var finder = new EOSSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
+            var finder = new EosSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
 
             var match = new AccelByte.Extend.SimpleEOSMatchmaking.Server.Model.Match(new List<MatchRequest>
             {
@@ -75,11 +75,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task SearchForEmptySessionAsync_NoSessions_ReturnsNull()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -101,11 +101,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task SearchForEmptySessionAsync_SessionsWithMatchId_FiltersThemOut()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -126,11 +126,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task SearchForEmptySessionAsync_UsesBucketIdFromConfig()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig { BucketId = "test-bucket" };
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -152,11 +152,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task SearchForEmptySessionAsync_UsesMaxSearchResultsFromConfig()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig { MaxSearchResults = 5 };
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -178,11 +178,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task SearchForEmptySessionAsync_SetsEmptyServersOnlyParameter()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -206,11 +206,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task TryClaimSessionAsync_WithValidSession_ReturnsTrue()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -232,11 +232,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task TryClaimSessionAsync_WithConcurrentModification_ReturnsFalse()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -258,11 +258,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_SetsMatchIdAttribute()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -284,11 +284,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_SetsMatchRequestIdsAttribute()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -311,11 +311,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_SetsClaimedAtAttribute()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -339,11 +339,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_AddsSessionToClaimedCache()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -367,11 +367,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_SendsNotificationToSessionOwner()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -401,11 +401,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_ReturnsSessionInfoWithCorrectData()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -441,11 +441,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_NotificationIncludesMatchId()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -474,11 +474,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_NotificationIncludesUserIds()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -508,11 +508,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task ClaimSession_NotificationIncludesRequestIds()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -546,11 +546,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task GetSessionAsync_WhenNoSessionsFound_ThrowsNoAvailableSessionsException()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -575,7 +575,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task GetSessionAsync_WhenAllSessionsAreClaimed_ThrowsNoAvailableSessionsException()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
@@ -583,7 +583,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             // Setup cache to return true for all sessions (all are claimed)
             mockCache.Setup(c => c.IsSessionClaimed(It.IsAny<string>())).Returns(true);
             
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -608,11 +608,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task GetSessionAsync_NoAvailableSessionsException_IncludesSessionCount()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 
@@ -639,11 +639,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
         public async Task GetSessionAsync_WhenNoSessionsFound_LogsWarning()
         {
             // Arrange
-            var mockLogger = new Mock<ILogger<EOSSessionFinder>>();
+            var mockLogger = new Mock<ILogger<EosSessionFinder>>();
             var config = new EOSSessionFinderConfig();
             var mockCache = new Mock<IClaimedSessionsCache>();
             var mockNotifier = new Mock<ISessionOwnerNotifier>();
-            var sessionFinder = new EOSSessionFinder(
+            var sessionFinder = new EosSessionFinder(
                 mockLogger.Object, 
                 null!, 
                 config, 

@@ -19,27 +19,27 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// Finds and claims existing empty EOS sessions for matched players.
     /// Suitable for player-hosted servers or dedicated servers that create their own sessions.
     /// </summary>
-    public class EOSSessionFinder : ISessionCreator
+    public class EosSessionFinder : ISessionCreator
     {
-        private readonly ILogger<EOSSessionFinder> _logger;
-        private readonly EOSSDKService _eosService;
-        private readonly EOSSessionFinderConfig _config;
-        private readonly IClaimedSessionsCache _claimedSessionsCache;
-        private readonly ISessionOwnerNotifier _sessionOwnerNotifier;
-        private readonly object _claimLock = new object();
+        private readonly ILogger<EosSessionFinder> Logger;
+        private readonly EOSSDKService EosService;
+        private readonly EOSSessionFinderConfig Config;
+        private readonly IClaimedSessionsCache ClaimedSessionsCache;
+        private readonly ISessionOwnerNotifier SessionOwnerNotifier;
+        private readonly object ClaimLock = new object();
 
-        public EOSSessionFinder(
-            ILogger<EOSSessionFinder> logger,
+        public EosSessionFinder(
+            ILogger<EosSessionFinder> logger,
             EOSSDKService eosService,
             EOSSessionFinderConfig config,
             IClaimedSessionsCache claimedSessionsCache,
             ISessionOwnerNotifier sessionOwnerNotifier)
         {
-            _logger = logger;
-            _eosService = eosService;
-            _config = config;
-            _claimedSessionsCache = claimedSessionsCache;
-            _sessionOwnerNotifier = sessionOwnerNotifier;
+            Logger = logger;
+            EosService = eosService;
+            Config = config;
+            ClaimedSessionsCache = claimedSessionsCache;
+            SessionOwnerNotifier = sessionOwnerNotifier;
         }
 
         public async Task<SessionInfo> GetSessionAsync(Match match)
@@ -49,7 +49,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             
             if (sessionDetails == null)
             {
-                _logger.LogWarning("No available sessions found: SessionsSearched={SessionsSearched}, MatchId={MatchId}",
+                Logger.LogWarning("No available sessions found: SessionsSearched={SessionsSearched}, MatchId={MatchId}",
                     sessionsSearched, match.MatchId);
                 throw new NoAvailableSessionsException(sessionsSearched);
             }
@@ -66,19 +66,19 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             
             if (infoResult != Result.Success || sessionInfo == null)
             {
-                _logger.LogError("Failed to copy session info for claiming: {Result}", infoResult);
+                Logger.LogError("Failed to copy session info for claiming: {Result}", infoResult);
                 throw new InvalidOperationException($"Failed to copy session info: {infoResult}");
             }
 
             var sessionId = sessionInfo.Value.SessionId?.ToString();
             if (string.IsNullOrEmpty(sessionId))
             {
-                _logger.LogError("Session has no session ID");
+                Logger.LogError("Session has no session ID");
                 throw new InvalidOperationException("Session has no session ID");
             }
 
             // Session was already added to claimed cache in SearchForAvailableSessionAsync
-            _logger.LogDebug("Processing claimed session: SessionId={SessionId}, MatchId={MatchId}",
+            Logger.LogDebug("Processing claimed session: SessionId={SessionId}, MatchId={MatchId}",
                 sessionId, match.MatchId);
 
             // Extract connection info from session settings (if available)
@@ -94,13 +94,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             // Send notification to session owner
             try
             {
-                await _sessionOwnerNotifier.NotifySessionClaimedAsync(sessionId, match, connectionInfo);
-                _logger.LogInformation("Notified session owner: SessionId={SessionId}, MatchId={MatchId}, ConnectionInfo={ConnectionInfo}",
+                await SessionOwnerNotifier.NotifySessionClaimedAsync(sessionId, match, connectionInfo);
+                Logger.LogInformation("Notified session owner: SessionId={SessionId}, MatchId={MatchId}, ConnectionInfo={ConnectionInfo}",
                     sessionId, match.MatchId, connectionInfo);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to notify session owner: SessionId={SessionId}, MatchId={MatchId}",
+                Logger.LogWarning(ex, "Failed to notify session owner: SessionId={SessionId}, MatchId={MatchId}",
                     sessionId, match.MatchId);
                 // Continue - notification is fire and forget
             }
@@ -118,7 +118,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _logger.LogInformation("Successfully claimed session: SessionId={SessionId}, MatchId={MatchId}",
+            Logger.LogInformation("Successfully claimed session: SessionId={SessionId}, MatchId={MatchId}",
                 sessionId, match.MatchId);
 
             return result;
@@ -126,36 +126,36 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 
         private async Task<(SessionDetails? sessionDetails, int sessionsSearched)> SearchForAvailableSessionAsync()
         {
-            if (_eosService == null)
+            if (EosService == null)
             {
-                _logger.LogError("EOS SDK Service is not initialized");
+                Logger.LogError("EOS SDK Service is not initialized");
                 throw new InvalidOperationException("EOS SDK Service is not initialized");
             }
 
-            var platform = _eosService.Platform;
+            var platform = EosService.Platform;
             if (platform == null)
             {
-                _logger.LogError("EOS Platform is not initialized");
+                Logger.LogError("EOS Platform is not initialized");
                 throw new InvalidOperationException("EOS Platform is not initialized");
             }
 
             var sessionsInterface = platform.GetSessionsInterface();
             if (sessionsInterface == null)
             {
-                _logger.LogError("Failed to get EOS Sessions interface");
+                Logger.LogError("Failed to get EOS Sessions interface");
                 throw new InvalidOperationException("EOS Sessions interface not available");
             }
 
             // Create session search handle
             var createSearchOptions = new CreateSessionSearchOptions
             {
-                MaxSearchResults = (uint)_config.MaxSearchResults
+                MaxSearchResults = (uint)Config.MaxSearchResults
             };
 
             var createSearchResult = sessionsInterface.CreateSessionSearch(ref createSearchOptions, out var sessionSearch);
             if (createSearchResult != Result.Success || sessionSearch == null)
             {
-                _logger.LogError("Failed to create session search: {Result}", createSearchResult);
+                Logger.LogError("Failed to create session search: {Result}", createSearchResult);
                 throw new InvalidOperationException($"Failed to create session search: {createSearchResult}");
             }
 
@@ -168,7 +168,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     Parameter = new AttributeData
                     {
                         Key = SessionsInterface.SEARCH_BUCKET_ID,
-                        Value = new AttributeDataValue { AsUtf8 = _config.BucketId }
+                        Value = new AttributeDataValue { AsUtf8 = Config.BucketId }
                     },
                     ComparisonOp = ComparisonOp.Equal
                 };
@@ -176,11 +176,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 var setParamResult = sessionSearch.SetParameter(ref setParameterOptions);
                 if (setParamResult != Result.Success)
                 {
-                    _logger.LogError("Failed to set bucket ID search parameter: {Result}", setParamResult);
+                    Logger.LogError("Failed to set bucket ID search parameter: {Result}", setParamResult);
                     throw new InvalidOperationException($"Failed to set search parameter: {setParamResult}");
                 }
 
-                _logger.LogDebug("Set search parameter: BucketId={BucketId}", _config.BucketId);
+                Logger.LogDebug("Set search parameter: BucketId={BucketId}", Config.BucketId);
 
                 // Execute search
                 var findOptions = new SessionSearchFindOptions
@@ -199,20 +199,20 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 var startTime = DateTime.UtcNow;
                 while (!tcs.Task.IsCompleted && (DateTime.UtcNow - startTime) < timeout)
                 {
-                    _eosService.Tick();
+                    EosService.Tick();
                     await Task.Delay(1); // Minimal delay - just yield to other tasks
                 }
 
                 if (!tcs.Task.IsCompleted)
                 {
-                    _logger.LogError("Session search timed out after {Timeout} seconds", timeout.TotalSeconds);
+                    Logger.LogError("Session search timed out after {Timeout} seconds", timeout.TotalSeconds);
                     throw new TimeoutException($"Session search timed out after {timeout.TotalSeconds} seconds");
                 }
 
                 var findResult = await tcs.Task;
                 if (findResult != Result.Success)
                 {
-                    _logger.LogWarning("Session search returned no results: {Result}", findResult);
+                    Logger.LogWarning("Session search returned no results: {Result}", findResult);
                     return (null, 0);
                 }
 
@@ -220,11 +220,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 var getCountOptions = new SessionSearchGetSearchResultCountOptions();
                 var resultCount = sessionSearch.GetSearchResultCount(ref getCountOptions);
 
-                _logger.LogDebug("Found {Count} sessions in search results", resultCount);
+                Logger.LogDebug("Found {Count} sessions in search results", resultCount);
 
                 // Lock the entire check-and-claim operation to prevent race conditions
                 // This ensures that concurrent calls don't claim the same session
-                lock (_claimLock)
+                lock (ClaimLock)
                 {
                     for (uint i = 0; i < resultCount; i++)
                     {
@@ -236,7 +236,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         var copyResult = sessionSearch.CopySearchResultByIndex(ref copyOptions, out var details);
                         if (copyResult != Result.Success || details == null)
                         {
-                            _logger.LogWarning("Failed to copy search result at index {Index}: {Result}", i, copyResult);
+                            Logger.LogWarning("Failed to copy search result at index {Index}: {Result}", i, copyResult);
                             continue;
                         }
 
@@ -246,32 +246,32 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         
                         if (infoResult != Result.Success || sessionInfo == null)
                         {
-                            _logger.LogWarning("Failed to copy session info at index {Index}: {Result}", i, infoResult);
+                            Logger.LogWarning("Failed to copy session info at index {Index}: {Result}", i, infoResult);
                             continue;
                         }
 
                         var sessionId = sessionInfo.Value.SessionId?.ToString();
                         if (string.IsNullOrEmpty(sessionId))
                         {
-                            _logger.LogWarning("Session at index {Index} has no session ID", i);
+                            Logger.LogWarning("Session at index {Index} has no session ID", i);
                             continue;
                         }
 
                         // Check if session is in claimed cache
-                        if (_claimedSessionsCache.IsSessionClaimed(sessionId))
+                        if (ClaimedSessionsCache.IsSessionClaimed(sessionId))
                         {
-                            _logger.LogDebug("Session {SessionId} is already claimed, skipping", sessionId);
+                            Logger.LogDebug("Session {SessionId} is already claimed, skipping", sessionId);
                             continue;
                         }
 
                         // Mark session as claimed immediately to prevent concurrent claims
-                        _claimedSessionsCache.AddClaimedSession(sessionId);
-                        _logger.LogInformation("Found and claimed available session: {SessionId}", sessionId);
+                        ClaimedSessionsCache.AddClaimedSession(sessionId);
+                        Logger.LogInformation("Found and claimed available session: {SessionId}", sessionId);
                         return (details, (int)resultCount);
                     }
 
                     // All sessions were claimed
-                    _logger.LogWarning("All {Count} found sessions are already claimed", resultCount);
+                    Logger.LogWarning("All {Count} found sessions are already claimed", resultCount);
                     return (null, (int)resultCount);
                 }
             }

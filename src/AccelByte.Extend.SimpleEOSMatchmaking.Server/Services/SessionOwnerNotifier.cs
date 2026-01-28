@@ -75,11 +75,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// </summary>
     public class StubSessionOwnerNotifier : ISessionOwnerNotifier
     {
-        private readonly ILogger<StubSessionOwnerNotifier> _logger;
+        private readonly ILogger<StubSessionOwnerNotifier> Logger;
 
         public StubSessionOwnerNotifier(ILogger<StubSessionOwnerNotifier> logger)
         {
-            _logger = logger;
+            Logger = logger;
         }
 
         public Task NotifySessionClaimedAsync(string sessionId, Match match, string connectionInfo)
@@ -87,7 +87,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             var userIds = string.Join(",", match.Requests.Select(r => r.UserId));
             var requestIds = string.Join(",", match.Requests.Select(r => r.RequestId));
 
-            _logger.LogInformation(
+            Logger.LogInformation(
                 "STUB: Session claimed notification - SessionId={SessionId}, MatchId={MatchId}, " +
                 "ConnectionInfo={ConnectionInfo}, UserIds={UserIds}, RequestIds={RequestIds}",
                 sessionId,

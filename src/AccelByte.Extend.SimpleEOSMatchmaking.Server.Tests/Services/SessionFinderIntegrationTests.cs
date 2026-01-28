@@ -80,7 +80,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             }
         }
 
-        private EOSSessionFinder CreateSessionFinder()
+        private EosSessionFinder CreateSessionFinder()
         {
             var loggerFactory = LoggerFactory.Create(builder =>
             {
@@ -89,7 +89,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 builder.SetMinimumLevel(LogLevel.Trace);
             });
 
-            var logger = loggerFactory.CreateLogger<EOSSessionFinder>();
+            var logger = loggerFactory.CreateLogger<EosSessionFinder>();
             var config = new EOSSessionFinderConfig
             {
                 BucketId = _testBucketId, // Use unique bucket per test
@@ -103,7 +103,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             var notifierLogger = loggerFactory.CreateLogger<StubSessionOwnerNotifier>();
             var notifier = new StubSessionOwnerNotifier(notifierLogger);
 
-            return new EOSSessionFinder(logger, _eosFixture.EOSService, config, cache, notifier);
+            return new EosSessionFinder(logger, _eosFixture.EOSService, config, cache, notifier);
         }
 
         /// <summary>
@@ -394,7 +394,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
                 builder.SetMinimumLevel(LogLevel.Trace);
             });
 
-            var logger = loggerFactory.CreateLogger<EOSSessionFinder>();
+            var logger = loggerFactory.CreateLogger<EosSessionFinder>();
             var config = new EOSSessionFinderConfig
             {
                 BucketId = _testBucketId, // Use unique bucket per test
@@ -408,7 +408,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             var notifierLogger = loggerFactory.CreateLogger<StubSessionOwnerNotifier>();
             var notifier = new StubSessionOwnerNotifier(notifierLogger);
 
-            var sessionFinder = new EOSSessionFinder(logger, _eosFixture.EOSService, config, cache, notifier);
+            var sessionFinder = new EosSessionFinder(logger, _eosFixture.EOSService, config, cache, notifier);
 
             _output.WriteLine("Creating empty test session...");
 
