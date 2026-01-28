@@ -103,7 +103,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         /// You can customize this method to implement different matching strategies such as
         /// skill-based matching, region-based matching, role-based matching, or party/group matching.
         /// 
-        /// See docs/examples.md for complete implementation examples.
+        /// See docs/examples.md for complete implementation example starting points.
         /// </summary>
         public async Task<IReadOnlyList<Match>> TryMatchAsync()
         {
@@ -111,20 +111,17 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 
             try
             {
-                // Clean up expired completed requests
                 var expiredCompleted = CompletedRequestStore.RemoveExpired(Config.RetentionPeriod);
                 if (expiredCompleted.Count > 0)
                 {
                     Logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
                 }
 
-                // Remove expired requests first
                 var expiredRequests = MatchPool.RemoveExpired(Config.RequestTimeout);
                 if (expiredRequests.Count > 0)
                 {
                     Logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
                     
-                    // Move expired requests to completed store
                     foreach (var expiredRequest in expiredRequests)
                     {
                         expiredRequest.Status = Model.MatchRequestStatus.Expired;
@@ -134,28 +131,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 }
 
                 // MATCHING ALGORITHM: Simple FIFO (First-In-First-Out)
-                // This ensures fairness - players who waited longest get matched first.
-                //
-                // CUSTOMIZATION POINT: Replace this section for custom matching logic.
-                // Examples:
-                // - Skill-based: Filter by MMR/ELO before selecting oldest
-                // - Region-based: Group by region metadata
-                // - Role-based: Ensure team composition (tank, healer, dps)
-                //
-                // Check if we have enough requests to make a match
+                // This ensures fairness - players who waited the longest get matched first.
+                
                 while (MatchPool.Count >= Config.MatchSize)
                 {
-                    // CUSTOMIZATION POINT: Add filtering logic here
-                    // Example: var eligibleRequests = _matchPool.GetAll().Where(r => r.Metadata["region"] == targetRegion);
-                    
-                    // Get the oldest requests (FIFO)
                     var oldestRequests = MatchPool.GetOldest(Config.MatchSize);
                     if (oldestRequests.Count < Config.MatchSize)
                     {
                         break;
                     }
 
-                    // Remove requests from pool
                     var requestsForMatch = new List<MatchRequest>();
                     foreach (var request in oldestRequests)
                     {
@@ -166,13 +151,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         }
                     }
 
-                    // Verify we got all the requests
                     if (requestsForMatch.Count != Config.MatchSize)
                     {
                         Logger.LogWarning("Failed to remove all requests for match, expected {Expected}, got {Actual}",
                             Config.MatchSize, requestsForMatch.Count);
                         
-                        // Return requests to pool
                         foreach (var request in requestsForMatch)
                         {
                             MatchPool.Add(request);
@@ -180,15 +163,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         break;
                     }
 
-                    // Create match
                     var match = new Match(requestsForMatch);
                     
                     try
                     {
-                        // Get session
                         var sessionInfo = await SessionCreator.GetSessionAsync(match);
 
-                        // Update request statuses
                         foreach (var request in requestsForMatch)
                         {
                             request.Status = Model.MatchRequestStatus.Matched;
@@ -197,13 +177,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                             request.CompletedAt = DateTime.UtcNow;
                         }
 
-                        // Move matched requests to completed store
                         foreach (var request in requestsForMatch)
                         {
                             CompletedRequestStore.Add(request);
                         }
 
-                        // Notify
                         await Notifier.NotifyMatchAsync(sessionInfo);
 
                         matches.Add(match);
@@ -215,13 +193,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     {
                         Logger.LogError(ex, "Failed to create session for match {MatchId}, returning requests to pool", match.MatchId);
                         
-                        // Return requests to pool on failure
                         foreach (var request in requestsForMatch)
                         {
                             MatchPool.Add(request);
                         }
                         
-                        // Break out of loop to avoid infinite retry
                         break;
                     }
                 }
