@@ -90,12 +90,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
         {
             // Arrange - Create a session creator without needing EOS initialized
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-            var logger = loggerFactory.CreateLogger<EosSessionCreator>();
+            var logger = loggerFactory.CreateLogger<EosSessionProvider>();
             var eosConfig = new EOSConfig();
             var eosOptions = Options.Create(eosConfig);
             var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
             var eosService = new EOSSDKService(eosLogger, eosOptions);
-            var sessionCreator = new EosSessionCreator(logger, eosService);
+            var sessionCreator = new EosSessionProvider(logger, eosService);
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentNullException>(
@@ -108,12 +108,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
         {
             // Arrange - Create a session creator without needing EOS initialized
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-            var logger = loggerFactory.CreateLogger<EosSessionCreator>();
+            var logger = loggerFactory.CreateLogger<EosSessionProvider>();
             var eosConfig = new EOSConfig();
             var eosOptions = Options.Create(eosConfig);
             var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
             var eosService = new EOSSDKService(eosLogger, eosOptions);
-            var sessionCreator = new EosSessionCreator(logger, eosService);
+            var sessionCreator = new EosSessionProvider(logger, eosService);
 
             var match = new Match(new List<MatchRequest>());
 
@@ -128,12 +128,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
         {
             // Arrange - Create a session creator without needing EOS initialized
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-            var logger = loggerFactory.CreateLogger<EosSessionCreator>();
+            var logger = loggerFactory.CreateLogger<EosSessionProvider>();
             var eosConfig = new EOSConfig();
             var eosOptions = Options.Create(eosConfig);
             var eosLogger = loggerFactory.CreateLogger<EOSSDKService>();
             var eosService = new EOSSDKService(eosLogger, eosOptions);
-            var sessionCreator = new EosSessionCreator(logger, eosService);
+            var sessionCreator = new EosSessionProvider(logger, eosService);
 
             var match = new Match(null!);
 
@@ -174,7 +174,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
             _eosFixture = eosFixture;
         }
 
-        private EosSessionCreator CreateSessionCreator()
+        private EosSessionProvider CreateSessionCreator()
         {
             var loggerFactory = LoggerFactory.Create(builder =>
             {
@@ -183,8 +183,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests
                 builder.SetMinimumLevel(LogLevel.Trace); // Capture all log levels
             });
 
-            var logger = loggerFactory.CreateLogger<EosSessionCreator>();
-            return new EosSessionCreator(logger, _eosFixture.EOSService);
+            var logger = loggerFactory.CreateLogger<EosSessionProvider>();
+            return new EosSessionProvider(logger, _eosFixture.EOSService);
         }
 
         [Fact(Timeout = 10000)]

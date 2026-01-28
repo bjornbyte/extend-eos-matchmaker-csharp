@@ -44,7 +44,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// </summary>
     public class MatchMaker(
         IMatchPool matchPool,
-        ISessionCreator sessionCreator,
+        ISessionProvider sessionProvider,
         IPlayerNotifier notifier,
         ICompletedRequestStore completedRequestStore,
         MatchMakerConfig config,
@@ -52,7 +52,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         : IHostedService
     {
         private readonly IMatchPool MatchPool = matchPool ?? throw new ArgumentNullException(nameof(matchPool));
-        private readonly ISessionCreator SessionCreator = sessionCreator ?? throw new ArgumentNullException(nameof(sessionCreator));
+        private readonly ISessionProvider SessionProvider = sessionProvider ?? throw new ArgumentNullException(nameof(sessionProvider));
         private readonly IPlayerNotifier Notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
         private readonly ICompletedRequestStore CompletedRequestStore = completedRequestStore ?? throw new ArgumentNullException(nameof(completedRequestStore));
         private readonly MatchMakerConfig Config = config ?? throw new ArgumentNullException(nameof(config));
@@ -172,7 +172,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     // is for running in a single game client or dedicated server.
                     try
                     {
-                        var sessionInfo = await SessionCreator.GetSessionAsync(match);
+                        var sessionInfo = await SessionProvider.GetSessionAsync(match);
 
                         foreach (var request in requestsForMatch)
                         {

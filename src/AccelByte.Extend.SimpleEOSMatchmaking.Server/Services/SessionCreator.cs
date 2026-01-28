@@ -15,50 +15,14 @@ using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// APPLICATION-LEVEL EXTENSION POINT: Interface for obtaining game sessions for matched players.
-    /// 
-    /// This is an extension point that supports two session provider modes:
-    /// 
-    /// CREATE MODE (EOSSessionCreator):
-    /// - Matchmaker creates new EOS sessions for each match
-    /// - Suitable for P2P gameplay or integration with dedicated server providers
-    /// - Players connect directly to each other or to allocated servers
-    /// 
-    /// FIND MODE (EOSSessionFinder):
-    /// - Matchmaker finds existing available EOS sessions created by game servers
-    /// - Suitable for player-hosted servers or pre-allocated dedicated servers
-    /// - Game servers create sessions and wait for matchmaker to assign players
-    /// 
-    /// When to implement custom session creator:
-    /// - When integrating with dedicated server providers (GameLift, Agones, etc.)
-    /// - When you need custom session configuration or metadata
-    /// - When you have a hybrid approach (both P2P and dedicated servers)
-    /// 
-    /// Configuration:
-    /// Set "SessionProvider:Mode" to "create" or "find" in appsettings.json
-    /// 
-    /// See docs/architecture.md#session-provider-modes for decision tree and examples.
-    /// </summary>
-    public interface ISessionCreator
-    {
-        /// <summary>
-        /// Get a session for the matched players.
-        /// Implementations may create a new session or find an existing empty session.
-        /// </summary>
-        /// <param name="match">The match containing the players to get a session for</param>
-        /// <returns>Information about the obtained session</returns>
-        Task<SessionInfo> GetSessionAsync(Match match);
-    }
-
-    /// <summary>
     /// Creates EOS sessions for matched players using the EOS SDK
     /// </summary>
-    public class EosSessionCreator : ISessionCreator
+    public class EosSessionProvider : ISessionProvider
     {
-        private readonly ILogger<EosSessionCreator> Logger;
+        private readonly ILogger<EosSessionProvider> Logger;
         private readonly EOSSDKService EosService;
 
-        public EosSessionCreator(ILogger<EosSessionCreator> logger, EOSSDKService eosService)
+        public EosSessionProvider(ILogger<EosSessionProvider> logger, EOSSDKService eosService)
         {
             Logger = logger;
             EosService = eosService;

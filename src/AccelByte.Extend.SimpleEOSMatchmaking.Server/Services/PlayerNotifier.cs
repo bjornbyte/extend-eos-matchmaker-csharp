@@ -23,11 +23,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// - AccelByte Lobby service integration
     /// 
     /// When to implement:
-    /// - When you need to notify players outside of polling GetMatchStatus
+    /// - When you need to notify players to eliminate the need for polling GetMatchStatus
     /// - When you want to integrate with your existing notification infrastructure
     /// - When you need real-time match notifications
     /// 
-    /// See docs/architecture.md for complete implementation examples.
+    /// See docs/examples.md for implementation examples.
     /// </summary>
     public interface IPlayerNotifier
     {
@@ -45,14 +45,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// TODO: Replace this with your game-specific notification implementation.
     /// 
     /// This stub implementation only logs to console and does not actually notify players.
-    /// For production use, implement IPlayerNotifier with your notification mechanism:
-    /// - HTTP webhooks to your game backend
-    /// - Push notifications (Firebase, APNS)
-    /// - Message queues (RabbitMQ, AWS SQS)
-    /// - WebSocket connections
-    /// - AccelByte Lobby service
-    /// 
-    /// See docs/architecture.md for complete implementation examples.
     /// </summary>
     public class LoggingPlayerNotifier : IPlayerNotifier
     {

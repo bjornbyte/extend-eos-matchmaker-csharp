@@ -19,7 +19,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// Finds and claims existing empty EOS sessions for matched players.
     /// Suitable for player-hosted servers or dedicated servers that create their own sessions.
     /// </summary>
-    public class EosSessionFinder : ISessionCreator
+    public class EosSessionFinder : ISessionProvider
     {
         private readonly ILogger<EosSessionFinder> Logger;
         private readonly EOSSDKService EosService;

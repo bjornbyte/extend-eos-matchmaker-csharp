@@ -20,14 +20,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
 {
     public class MatchMakerTests
     {
-        private readonly Mock<ISessionCreator> _mockSessionCreator;
+        private readonly Mock<ISessionProvider> _mockSessionCreator;
         private readonly Mock<IPlayerNotifier> _mockNotifier;
         private readonly Mock<ICompletedRequestStore> _mockCompletedRequestStore;
         private readonly Mock<ILogger<MatchMaker>> _mockLogger;
 
         public MatchMakerTests()
         {
-            _mockSessionCreator = new Mock<ISessionCreator>();
+            _mockSessionCreator = new Mock<ISessionProvider>();
             _mockNotifier = new Mock<IPlayerNotifier>();
             _mockCompletedRequestStore = new Mock<ICompletedRequestStore>();
             _mockLogger = new Mock<ILogger<MatchMaker>>();

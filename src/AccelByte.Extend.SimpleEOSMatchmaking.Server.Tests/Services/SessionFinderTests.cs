@@ -46,7 +46,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Tests.Services
             var finder = new EosSessionFinder(logger.Object, null!, config, cache.Object, notifier.Object);
 
             // Assert
-            Assert.IsAssignableFrom<ISessionCreator>(finder);
+            Assert.IsAssignableFrom<ISessionProvider>(finder);
         }
 
         [Fact]
