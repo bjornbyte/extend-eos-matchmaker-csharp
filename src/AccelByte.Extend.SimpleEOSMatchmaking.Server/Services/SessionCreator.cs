@@ -17,38 +17,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// <summary>
     /// Creates EOS sessions for matched players using the EOS SDK
     /// </summary>
-    public class EosSessionProvider : ISessionProvider
+    public class EosSessionProvider(ILogger<EosSessionProvider> logger, EOSSDKService eosService)
+        : ISessionProvider
     {
-        private readonly ILogger<EosSessionProvider> Logger;
-        private readonly EOSSDKService EosService;
-
-        public EosSessionProvider(ILogger<EosSessionProvider> logger, EOSSDKService eosService)
-        {
-            Logger = logger;
-            EosService = eosService;
-        }
-
         public async Task<SessionInfo> GetSessionAsync(Match match)
         {
-            if (match == null)
-                throw new ArgumentNullException(nameof(match));
+            ArgumentNullException.ThrowIfNull(match);
 
             if (match.Requests == null || match.Requests.Count == 0)
                 throw new ArgumentException("Match must contain at least one request", nameof(match));
 
-            var platform = EosService.Platform;
+            var platform = eosService.Platform;
             if (platform == null)
             {
-                Logger.LogError("EOS Platform is not initialized");
+                logger.LogError("EOS Platform is not initialized");
                 throw new InvalidOperationException("EOS Platform is not initialized");
             }
 
             var sessionsInterface = platform.GetSessionsInterface();
-            if (sessionsInterface == null)
-            {
-                Logger.LogError("Failed to get EOS Sessions Interface");
-                throw new InvalidOperationException("Failed to get EOS Sessions Interface");
-            }
 
             try
             {
@@ -56,10 +42,10 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                 var sessionName = $"match-{match.MatchId}";
                 var sessionId = Guid.NewGuid().ToString();
 
-                Logger.LogInformation("Creating EOS session: SessionName={SessionName}, SessionId={SessionId}, PlayerCount={PlayerCount}",
+                logger.LogInformation("Creating EOS session: SessionName={SessionName}, SessionId={SessionId}, PlayerCount={PlayerCount}",
                     sessionName, sessionId, match.Requests.Count);
                 
-                // Create session modification handle
+                // Create a session modification handle
                 var createOptions = new CreateSessionModificationOptions
                 {
                     SessionName = sessionName,
@@ -68,13 +54,12 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     PresenceEnabled = false,
                     SessionId = sessionId,
                     SanctionsEnabled = false,
-                    AllowedPlatformIds = null
                 };
 
                 var createResult = sessionsInterface.CreateSessionModification(ref createOptions, out var sessionModification);
                 if (createResult != Result.Success)
                 {
-                    Logger.LogError("Failed to create session modification: {Result}", createResult);
+                    logger.LogError("Failed to create session modification: {Result}", createResult);
                     throw new InvalidOperationException($"Failed to create session modification: {createResult}");
                 }
 
@@ -97,7 +82,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     var addAttributeResult = sessionModification.AddAttribute(ref addAttributeOptions);
                     if (addAttributeResult != Result.Success)
                     {
-                        Logger.LogWarning("Failed to add match_request_ids attribute: {Result}", addAttributeResult);
+                        logger.LogWarning("Failed to add match_request_ids attribute: {Result}", addAttributeResult);
                     }
 
                     // Add match ID as an attribute
@@ -114,7 +99,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     var matchIdResult = sessionModification.AddAttribute(ref matchIdAttributeOptions);
                     if (matchIdResult != Result.Success)
                     {
-                        Logger.LogWarning("Failed to add match_id attribute: {Result}", matchIdResult);
+                        logger.LogWarning("Failed to add match_id attribute: {Result}", matchIdResult);
                     }
 
                     // Update the session (create it)
@@ -137,13 +122,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     
                     while (!tcs.Task.IsCompleted && (DateTime.UtcNow - startTime) < timeout)
                     {
-                        EosService.Tick();
+                        eosService.Tick();
                         await Task.Delay(1); // Minimal delay - just yield to other tasks
                     }
 
                     if (!tcs.Task.IsCompleted)
                     {
-                        Logger.LogError("Session creation timed out after {Timeout} seconds", timeout.TotalSeconds);
+                        logger.LogError("Session creation timed out after {Timeout} seconds", timeout.TotalSeconds);
                         throw new TimeoutException($"Session creation timed out after {timeout.TotalSeconds} seconds");
                     }
 
@@ -151,11 +136,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     
                     if (updateResult != Result.Success)
                     {
-                        Logger.LogError("Failed to update/create session: {Result}", updateResult);
+                        logger.LogError("Failed to update/create session: {Result}", updateResult);
                         throw new InvalidOperationException($"Failed to create session: {updateResult}");
                     }
 
-                    Logger.LogInformation("Successfully created EOS session: SessionId={SessionId}", sessionId);
+                    logger.LogInformation("Successfully created EOS session: SessionId={SessionId}", sessionId);
 
                     // Build and return session info
                     var sessionInfo = new SessionInfo
@@ -176,7 +161,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error creating EOS session for match {MatchId}", match.MatchId);
+                logger.LogError(ex, "Error creating EOS session for match {MatchId}", match.MatchId);
                 throw;
             }
         }
