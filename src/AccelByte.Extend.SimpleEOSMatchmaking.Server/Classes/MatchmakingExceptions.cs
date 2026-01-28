@@ -9,51 +9,24 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
     /// <summary>
     /// Exception thrown when a user attempts to submit a match request while already having a pending request
     /// </summary>
-    public class DuplicateRequestException : Exception
+    public class DuplicateRequestException(string existingRequestId)
+        : Exception($"User already has a pending match request: {existingRequestId}")
     {
         /// <summary>
         /// The ID of the existing pending request
         /// </summary>
-        public string ExistingRequestId { get; }
-
-        public DuplicateRequestException(string existingRequestId)
-            : base($"User already has a pending match request: {existingRequestId}")
-        {
-            ExistingRequestId = existingRequestId;
-        }
+        public string ExistingRequestId { get; } = existingRequestId;
     }
 
     /// <summary>
     /// Exception thrown when a match request is not found
     /// </summary>
-    public class MatchRequestNotFoundException : Exception
-    {
-        public MatchRequestNotFoundException()
-            : base("Match request not found")
-        {
-        }
-
-        public MatchRequestNotFoundException(string message)
-            : base(message)
-        {
-        }
-    }
+    public class MatchRequestNotFoundException() : Exception("Match request not found");
 
     /// <summary>
     /// Exception thrown when attempting to cancel a request that has already been matched
     /// </summary>
-    public class RequestAlreadyMatchedException : Exception
-    {
-        public RequestAlreadyMatchedException()
-            : base("Cannot cancel - request has already been matched")
-        {
-        }
-
-        public RequestAlreadyMatchedException(string message)
-            : base(message)
-        {
-        }
-    }
+    public class RequestAlreadyMatchedException() : Exception("Cannot cancel - request has already been matched");
 
     /// <summary>
     /// Exception thrown when session creation fails
@@ -62,11 +35,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
     {
         public SessionCreationException()
             : base("Failed to create session")
-        {
-        }
-
-        public SessionCreationException(string message)
-            : base(message)
         {
         }
 
@@ -79,28 +47,18 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes
     /// <summary>
     /// Exception thrown when no available sessions are found
     /// </summary>
-    public class NoAvailableSessionsException : Exception
+    public class NoAvailableSessionsException(int sessionsSearched)
+        : Exception($"No available sessions found after searching {sessionsSearched} sessions")
     {
-        public int SessionsSearched { get; }
-
-        public NoAvailableSessionsException(int sessionsSearched)
-            : base($"No available sessions found after searching {sessionsSearched} sessions")
-        {
-            SessionsSearched = sessionsSearched;
-        }
+        public int SessionsSearched { get; } = sessionsSearched;
     }
 
     /// <summary>
     /// Exception thrown when session claiming fails after maximum retry attempts
     /// </summary>
-    public class SessionClaimFailedException : Exception
+    public class SessionClaimFailedException(int retryAttempts)
+        : Exception($"Failed to claim session after {retryAttempts} retry attempts")
     {
-        public int RetryAttempts { get; }
-
-        public SessionClaimFailedException(int retryAttempts)
-            : base($"Failed to claim session after {retryAttempts} retry attempts")
-        {
-            RetryAttempts = retryAttempts;
-        }
+        public int RetryAttempts { get; } = retryAttempts;
     }
 }

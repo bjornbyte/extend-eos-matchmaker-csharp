@@ -13,27 +13,20 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Classes;
 /// Interceptor that extracts user ID from the "user-id" header when authentication is disabled.
 /// This is a simpler alternative to AuthorizationInterceptor for development/testing scenarios.
 /// </summary>
-public class HeaderUserIdInterceptor : Interceptor
+public class HeaderUserIdInterceptor(ILogger<HeaderUserIdInterceptor> logger) : Interceptor
 {
-    private readonly ILogger<HeaderUserIdInterceptor> _logger;
-
-    public HeaderUserIdInterceptor(ILogger<HeaderUserIdInterceptor> logger)
-    {
-        _logger = logger;
-    }
-
     private void ExtractUserIdFromHeader(ServerCallContext context)
     {
         var userIdHeader = context.RequestHeaders.GetValue(GrpcConstants.UserIdKey);
         
         if (string.IsNullOrEmpty(userIdHeader))
         {
-            _logger.LogWarning("Missing or empty user-id header");
+            logger.LogWarning("Missing or empty user-id header");
             throw new RpcException(new Status(StatusCode.Unauthenticated, "User-id header is required"));
         }
         
         context.UserState.Add(GrpcConstants.UserIdKey, userIdHeader);
-        _logger.LogDebug("Extracted user ID from header: {UserId}", userIdHeader);
+        logger.LogDebug("Extracted user ID from header: {UserId}", userIdHeader);
     }
 
     public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(
