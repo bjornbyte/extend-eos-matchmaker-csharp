@@ -14,6 +14,10 @@
 - [Key-Value Store-Based MatchPool](#key-value-store-based-matchpool)
 - [Database-Backed CompletedRequestStore](#database-backed-completedrequeststore)
 - [Skill-Based MatchMaker](#skill-based-matchmaker)
+- [Region-Based MatchMaker](#region-based-matchmaker)
+- [Role-Based MatchMaker](#role-based-matchmaker)
+- [Party/Group MatchMaker](#partygroup-matchmaker)
+- [See Also](#see-also)
 
 ---
 
@@ -674,10 +678,604 @@ var maxDifference = 1000; // Max 1000 MMR difference
 
 ---
 
-## Additional Examples
+## Region-Based MatchMaker
 
-For more examples and patterns, see:
+**Use Case:** Match players from the same geographic region to minimize latency.
 
-- **[Architecture Guide](architecture.md)** - Extension points and design patterns
-- **[Setup Guide](setup.md)** - Configuration and deployment
-- **[Operations Guide](operations.md)** - Monitoring and troubleshooting
+**Customization Point:** `MatchMaker.TryMatchAsync()` method
+
+**Note:** This requires modifying the core MatchMaker class, not implementing an interface.
+
+### Implementation
+
+Modify `Services/MatchMaker.cs` to add region-based matching logic:
+
+```csharp
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
+{
+    var matches = new List<Match>();
+
+    try
+    {
+        // Clean up expired completed requests
+        var expiredCompleted = CompletedRequestStore.RemoveExpired(Config.RetentionPeriod);
+        if (expiredCompleted.Count > 0)
+        {
+            Logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
+        }
+
+        // Remove expired requests first
+        var expiredRequests = MatchPool.RemoveExpired(Config.RequestTimeout);
+        if (expiredRequests.Count > 0)
+        {
+            Logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
+            
+            foreach (var expiredRequest in expiredRequests)
+            {
+                expiredRequest.Status = Model.MatchRequestStatus.Expired;
+                expiredRequest.CompletedAt = DateTime.UtcNow;
+                CompletedRequestStore.Add(expiredRequest);
+            }
+        }
+
+        // CUSTOMIZATION: Group requests by region
+        var allRequests = MatchPool.GetAll();
+        var regionGroups = allRequests
+            .GroupBy(r => GetRegion(r))
+            .OrderByDescending(g => g.Count()); // Prioritize regions with more players
+
+        foreach (var regionGroup in regionGroups)
+        {
+            var regionRequests = regionGroup.OrderBy(r => r.CreatedAt).ToList();
+            
+            while (regionRequests.Count >= Config.MatchSize)
+            {
+                // Get oldest requests in this region
+                var oldestRequests = regionRequests.Take(Config.MatchSize).ToList();
+                regionRequests = regionRequests.Skip(Config.MatchSize).ToList();
+
+                // Remove requests from pool
+                var requestsForMatch = new List<MatchRequest>();
+                foreach (var request in oldestRequests)
+                {
+                    var removed = MatchPool.Remove(request.RequestId);
+                    if (removed != null)
+                    {
+                        requestsForMatch.Add(removed);
+                    }
+                }
+
+                if (requestsForMatch.Count != Config.MatchSize)
+                {
+                    Logger.LogWarning("Failed to remove all requests for match in region {Region}", regionGroup.Key);
+                    foreach (var request in requestsForMatch)
+                    {
+                        MatchPool.Add(request);
+                    }
+                    break;
+                }
+
+                // Create match
+                var match = new Match(requestsForMatch);
+                
+                try
+                {
+                    var sessionInfo = await SessionCreator.GetSessionAsync(match);
+
+                    foreach (var request in requestsForMatch)
+                    {
+                        request.Status = Model.MatchRequestStatus.Matched;
+                        request.MatchedAt = DateTime.UtcNow;
+                        request.SessionId = sessionInfo.SessionId;
+                        request.CompletedAt = DateTime.UtcNow;
+                    }
+
+                    foreach (var request in requestsForMatch)
+                    {
+                        CompletedRequestStore.Add(request);
+                    }
+
+                    await Notifier.NotifyMatchAsync(sessionInfo);
+                    matches.Add(match);
+
+                    Logger.LogInformation(
+                        "Created match {MatchId} with {PlayerCount} players in region {Region}",
+                        match.MatchId, requestsForMatch.Count, regionGroup.Key);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to create session for match {MatchId}", match.MatchId);
+                    foreach (var request in requestsForMatch)
+                    {
+                        MatchPool.Add(request);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error in TryMatchAsync");
+    }
+
+    return matches;
+}
+
+// Helper: Extract region from metadata
+private string GetRegion(MatchRequest request)
+{
+    if (request.Metadata?.TryGetValue("region", out var region) == true)
+    {
+        return region;
+    }
+    return "default"; // Default region for requests without region metadata
+}
+```
+
+### Client Usage
+
+Submit match request with region metadata:
+
+```bash
+curl -X POST "http://localhost:8000/matchmaking/v1/match/submit" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {
+      "region": "us-west"
+    }
+  }'
+```
+
+### Supported Regions
+
+Define your regions based on your infrastructure:
+
+```csharp
+// Common region codes
+private static readonly HashSet<string> ValidRegions = new()
+{
+    "us-east",
+    "us-west",
+    "eu-west",
+    "eu-central",
+    "ap-southeast",
+    "ap-northeast"
+};
+```
+
+### Considerations
+
+- **Cross-region fallback**: Consider allowing cross-region matches after a timeout
+- **Region priority**: Match within region first, then expand to nearby regions
+- **Session location**: Ensure game sessions are created in the matched region
+
+---
+
+## Role-Based MatchMaker
+
+**Use Case:** Team-based games requiring balanced composition (e.g., 1 tank, 1 healer, 2 DPS).
+
+**Customization Point:** `MatchMaker.TryMatchAsync()` method
+
+**Note:** This requires modifying the core MatchMaker class, not implementing an interface.
+
+### Implementation
+
+Modify `Services/MatchMaker.cs` for role-based matching:
+
+```csharp
+// Add role configuration
+public class RoleRequirements
+{
+    public int Tanks { get; set; } = 1;
+    public int Healers { get; set; } = 1;
+    public int DPS { get; set; } = 2;
+}
+
+// In MatchMakerConfig, add:
+public RoleRequirements RoleRequirements { get; set; } = new();
+
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
+{
+    var matches = new List<Match>();
+
+    try
+    {
+        // Clean up expired requests
+        var expiredCompleted = CompletedRequestStore.RemoveExpired(Config.RetentionPeriod);
+        if (expiredCompleted.Count > 0)
+        {
+            Logger.LogInformation("Removed {Count} expired completed requests", expiredCompleted.Count);
+        }
+
+        var expiredRequests = MatchPool.RemoveExpired(Config.RequestTimeout);
+        if (expiredRequests.Count > 0)
+        {
+            Logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
+            
+            foreach (var expiredRequest in expiredRequests)
+            {
+                expiredRequest.Status = Model.MatchRequestStatus.Expired;
+                expiredRequest.CompletedAt = DateTime.UtcNow;
+                CompletedRequestStore.Add(expiredRequest);
+            }
+        }
+
+        // CUSTOMIZATION: Group requests by role
+        var allRequests = MatchPool.GetAll();
+        var tanks = allRequests.Where(r => GetRole(r) == "tank").OrderBy(r => r.CreatedAt).ToList();
+        var healers = allRequests.Where(r => GetRole(r) == "healer").OrderBy(r => r.CreatedAt).ToList();
+        var dps = allRequests.Where(r => GetRole(r) == "dps").OrderBy(r => r.CreatedAt).ToList();
+
+        // Try to form balanced teams
+        while (tanks.Count >= Config.RoleRequirements.Tanks &&
+               healers.Count >= Config.RoleRequirements.Healers &&
+               dps.Count >= Config.RoleRequirements.DPS)
+        {
+            var requestsForMatch = new List<MatchRequest>();
+
+            // Select required number of each role
+            requestsForMatch.AddRange(tanks.Take(Config.RoleRequirements.Tanks));
+            requestsForMatch.AddRange(healers.Take(Config.RoleRequirements.Healers));
+            requestsForMatch.AddRange(dps.Take(Config.RoleRequirements.DPS));
+
+            // Remove from role lists
+            tanks = tanks.Skip(Config.RoleRequirements.Tanks).ToList();
+            healers = healers.Skip(Config.RoleRequirements.Healers).ToList();
+            dps = dps.Skip(Config.RoleRequirements.DPS).ToList();
+
+            // Remove from pool
+            var removedRequests = new List<MatchRequest>();
+            foreach (var request in requestsForMatch)
+            {
+                var removed = MatchPool.Remove(request.RequestId);
+                if (removed != null)
+                {
+                    removedRequests.Add(removed);
+                }
+            }
+
+            if (removedRequests.Count != requestsForMatch.Count)
+            {
+                Logger.LogWarning("Failed to remove all requests for role-based match");
+                foreach (var request in removedRequests)
+                {
+                    MatchPool.Add(request);
+                }
+                break;
+            }
+
+            // Create match
+            var match = new Match(removedRequests);
+            
+            try
+            {
+                var sessionInfo = await SessionCreator.GetSessionAsync(match);
+
+                foreach (var request in removedRequests)
+                {
+                    request.Status = Model.MatchRequestStatus.Matched;
+                    request.MatchedAt = DateTime.UtcNow;
+                    request.SessionId = sessionInfo.SessionId;
+                    request.CompletedAt = DateTime.UtcNow;
+                }
+
+                foreach (var request in removedRequests)
+                {
+                    CompletedRequestStore.Add(request);
+                }
+
+                await Notifier.NotifyMatchAsync(sessionInfo);
+                matches.Add(match);
+
+                var roleComposition = string.Join(", ", 
+                    removedRequests.GroupBy(r => GetRole(r))
+                        .Select(g => $"{g.Count()} {g.Key}"));
+
+                Logger.LogInformation(
+                    "Created match {MatchId} with composition: {Composition}",
+                    match.MatchId, roleComposition);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to create session for match {MatchId}", match.MatchId);
+                foreach (var request in removedRequests)
+                {
+                    MatchPool.Add(request);
+                }
+                break;
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error in TryMatchAsync");
+    }
+
+    return matches;
+}
+
+// Helper: Extract role from metadata
+private string GetRole(MatchRequest request)
+{
+    if (request.Metadata?.TryGetValue("role", out var role) == true)
+    {
+        return role.ToLowerInvariant();
+    }
+    return "dps"; // Default role
+}
+```
+
+### Client Usage
+
+Submit match request with role metadata:
+
+```bash
+curl -X POST "http://localhost:8000/matchmaking/v1/match/submit" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {
+      "role": "tank"
+    }
+  }'
+```
+
+### Configuration
+
+Configure role requirements in `appsettings.json`:
+
+```json
+{
+  "MatchMaker": {
+    "MatchSize": 4,
+    "RoleRequirements": {
+      "Tanks": 1,
+      "Healers": 1,
+      "DPS": 2
+    }
+  }
+}
+```
+
+### Considerations
+
+- **Flexible roles**: Allow players to queue for multiple roles to reduce wait times
+- **Role validation**: Validate role values on submission
+- **Queue times**: DPS typically have longer queues due to popularity
+- **Dynamic composition**: Consider alternative compositions (e.g., 2 tanks, 0 healers)
+
+---
+
+## Party/Group MatchMaker
+
+**Use Case:** Keep friends together by matching parties as units rather than individual players.
+
+**Customization Point:** `MatchMaker.TryMatchAsync()` method
+
+**Note:** This requires modifying the core MatchMaker class, not implementing an interface.
+
+### Implementation
+
+Modify `Services/MatchMaker.cs` for party-based matching:
+
+```csharp
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
+{
+    var matches = new List<Match>();
+
+    try
+    {
+        // Clean up expired requests
+        var expiredCompleted = CompletedRequestStore.RemoveExpired(Config.RetentionPeriod);
+        if (expiredCompleted.Count > 0)
+        {
+            Logger.LogInformation("Removed {Count} expired completed requests", expiredCompleted.Count);
+        }
+
+        var expiredRequests = MatchPool.RemoveExpired(Config.RequestTimeout);
+        if (expiredRequests.Count > 0)
+        {
+            Logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
+            
+            foreach (var expiredRequest in expiredRequests)
+            {
+                expiredRequest.Status = Model.MatchRequestStatus.Expired;
+                expiredRequest.CompletedAt = DateTime.UtcNow;
+                CompletedRequestStore.Add(expiredRequest);
+            }
+        }
+
+        // CUSTOMIZATION: Group requests by party
+        var allRequests = MatchPool.GetAll();
+        var parties = allRequests
+            .GroupBy(r => GetPartyId(r))
+            .Select(g => new Party
+            {
+                PartyId = g.Key,
+                Requests = g.OrderBy(r => r.CreatedAt).ToList(),
+                Size = g.Count()
+            })
+            .OrderBy(p => p.Requests.First().CreatedAt) // Oldest party first
+            .ToList();
+
+        // Try to form matches from parties
+        while (parties.Any())
+        {
+            var requestsForMatch = new List<MatchRequest>();
+            var partiesInMatch = new List<Party>();
+            var remainingSlots = Config.MatchSize;
+
+            // Fill match with parties
+            foreach (var party in parties.ToList())
+            {
+                if (party.Size <= remainingSlots)
+                {
+                    requestsForMatch.AddRange(party.Requests);
+                    partiesInMatch.Add(party);
+                    remainingSlots -= party.Size;
+                    parties.Remove(party);
+
+                    if (remainingSlots == 0)
+                    {
+                        break; // Match is full
+                    }
+                }
+            }
+
+            // Check if we have a full match
+            if (requestsForMatch.Count != Config.MatchSize)
+            {
+                Logger.LogDebug(
+                    "Cannot form full match with current parties. Need {Required}, have {Current}",
+                    Config.MatchSize, requestsForMatch.Count);
+                break;
+            }
+
+            // Remove from pool
+            var removedRequests = new List<MatchRequest>();
+            foreach (var request in requestsForMatch)
+            {
+                var removed = MatchPool.Remove(request.RequestId);
+                if (removed != null)
+                {
+                    removedRequests.Add(removed);
+                }
+            }
+
+            if (removedRequests.Count != requestsForMatch.Count)
+            {
+                Logger.LogWarning("Failed to remove all requests for party match");
+                foreach (var request in removedRequests)
+                {
+                    MatchPool.Add(request);
+                }
+                // Return parties to list
+                parties.AddRange(partiesInMatch);
+                break;
+            }
+
+            // Create match
+            var match = new Match(removedRequests);
+            
+            try
+            {
+                var sessionInfo = await SessionCreator.GetSessionAsync(match);
+
+                foreach (var request in removedRequests)
+                {
+                    request.Status = Model.MatchRequestStatus.Matched;
+                    request.MatchedAt = DateTime.UtcNow;
+                    request.SessionId = sessionInfo.SessionId;
+                    request.CompletedAt = DateTime.UtcNow;
+                }
+
+                foreach (var request in removedRequests)
+                {
+                    CompletedRequestStore.Add(request);
+                }
+
+                await Notifier.NotifyMatchAsync(sessionInfo);
+                matches.Add(match);
+
+                var partyInfo = string.Join(", ", 
+                    partiesInMatch.Select(p => $"Party {p.PartyId} ({p.Size} players)"));
+
+                Logger.LogInformation(
+                    "Created match {MatchId} with parties: {PartyInfo}",
+                    match.MatchId, partyInfo);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to create session for match {MatchId}", match.MatchId);
+                foreach (var request in removedRequests)
+                {
+                    MatchPool.Add(request);
+                }
+                parties.AddRange(partiesInMatch);
+                break;
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error in TryMatchAsync");
+    }
+
+    return matches;
+}
+
+// Helper class
+private class Party
+{
+    public string PartyId { get; set; } = string.Empty;
+    public List<MatchRequest> Requests { get; set; } = new();
+    public int Size { get; set; }
+}
+
+// Helper: Extract party ID from metadata
+private string GetPartyId(MatchRequest request)
+{
+    if (request.Metadata?.TryGetValue("party_id", out var partyId) == true)
+    {
+        return partyId;
+    }
+    return request.RequestId; // Solo players get unique party ID
+}
+```
+
+### Client Usage
+
+Submit match request with party metadata:
+
+```bash
+# Party leader creates party and shares party_id with members
+PARTY_ID=$(uuidgen)
+
+# Each party member submits with same party_id
+curl -X POST "http://localhost:8000/matchmaking/v1/match/submit" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"metadata\": {
+      \"party_id\": \"$PARTY_ID\"
+    }
+  }"
+```
+
+### Party Size Limits
+
+Add validation to prevent oversized parties:
+
+```csharp
+// In match submission endpoint
+if (request.Metadata?.TryGetValue("party_id", out var partyId) == true)
+{
+    var partySize = _matchPool.GetAll()
+        .Count(r => r.Metadata?.GetValueOrDefault("party_id") == partyId);
+    
+    if (partySize >= _config.MatchSize)
+    {
+        return BadRequest("Party is full");
+    }
+}
+```
+
+### Considerations
+
+- **Party size limits**: Prevent parties larger than match size
+- **Mixed matching**: Allow solo players to fill remaining slots
+- **Party priority**: Consider giving parties priority to reduce wait times
+- **Cross-party communication**: Ensure party members can communicate before match
+
+---
+
+## See Also
+
+For additional context and information:
+
+- **[Architecture Guide](architecture.md)** - Extension points, interfaces, and design patterns
+- **[Setup Guide](setup.md)** - Configuration options and deployment
+- **[Operations Guide](operations.md)** - Monitoring, logging, and troubleshooting
