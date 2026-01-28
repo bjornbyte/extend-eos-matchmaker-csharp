@@ -26,7 +26,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         private readonly EOSSessionFinderConfig Config;
         private readonly IClaimedSessionsCache ClaimedSessionsCache;
         private readonly ISessionOwnerNotifier SessionOwnerNotifier;
-        private readonly object ClaimLock = new object();
+        private readonly object ClaimLock = new();
 
         public EosSessionFinder(
             ILogger<EosSessionFinder> logger,

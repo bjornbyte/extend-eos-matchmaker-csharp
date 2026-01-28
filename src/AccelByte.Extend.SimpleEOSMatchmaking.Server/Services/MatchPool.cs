@@ -8,31 +8,6 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// <summary>
     /// INFRASTRUCTURE-LEVEL EXTENSION POINT: Interface for managing a pool of pending match requests.
     /// 
-    /// The default implementation (MatchPool) uses in-memory storage with thread-safe operations.
-    /// This is suitable for single-instance deployments but has limitations:
-    /// 
-    /// LIMITATIONS OF DEFAULT IN-MEMORY IMPLEMENTATION:
-    /// - Single-instance only: Cannot share state across multiple service instances
-    /// - No durability: All pending requests lost on service restart
-    /// - Memory-bound: Limited by available RAM
-    /// 
-    /// WHEN TO IMPLEMENT CUSTOM STORAGE:
-    /// 
-    /// Multi-Instance Deployments:
-    /// - Use Redis or distributed cache for shared state across instances
-    /// - Ensures all instances see the same pending requests
-    /// - Prevents duplicate matching
-    /// 
-    /// High Availability Requirements:
-    /// - Use database (SQL Server, PostgreSQL, etc.) for durability
-    /// - Requests survive service restarts
-    /// - Can recover from failures
-    /// 
-    /// Large-Scale Matchmaking:
-    /// - Use external queue system (RabbitMQ, AWS SQS, etc.)
-    /// - Better scalability for high request volumes
-    /// - Can distribute load across multiple matchers
-    /// 
     /// IMPLEMENTATION CONSIDERATIONS:
     /// - Must maintain FIFO ordering for fair matching
     /// - Must support fast lookups by request ID and user ID
@@ -81,13 +56,19 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 
     /// <summary>
     /// Thread-safe in-memory storage for pending match requests
+    /// This is suitable for single-instance deployments but has limitations:
+    /// 
+    /// LIMITATIONS OF DEFAULT IN-MEMORY IMPLEMENTATION:
+    /// - Single-instance only: Cannot share state across multiple service instances
+    /// - No durability: All pending requests lost on service restart
+    /// - Memory-bound: Limited by available RAM
     /// </summary>
     public class MatchPool : IMatchPool
     {
-        private readonly object Lock = new object();
-        private readonly Dictionary<string, MatchRequest> RequestsById = new Dictionary<string, MatchRequest>();
-        private readonly Dictionary<string, MatchRequest> RequestsByUserId = new Dictionary<string, MatchRequest>();
-        private readonly List<MatchRequest> RequestsInOrder = new List<MatchRequest>();
+        private readonly object Lock = new();
+        private readonly Dictionary<string, MatchRequest> RequestsById = new();
+        private readonly Dictionary<string, MatchRequest> RequestsByUserId = new();
+        private readonly List<MatchRequest> RequestsInOrder = [];
 
         public int Count
         {
@@ -181,7 +162,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                     .Where(r => r.CreatedAt < cutoffTime)
                     .ToList();
 
-                // Remove and update status
+                // Remove and update the status
                 foreach (var request in toRemove)
                 {
                     request.Status = Model.MatchRequestStatus.Expired;

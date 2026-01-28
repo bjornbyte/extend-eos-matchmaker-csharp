@@ -31,8 +31,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// </summary>
     public class CompletedRequestStore : ICompletedRequestStore
     {
-        private readonly object Lock = new object();
-        private readonly Dictionary<string, MatchRequest> RequestsById = new Dictionary<string, MatchRequest>();
+        private readonly object Lock = new();
+        private readonly Dictionary<string, MatchRequest> RequestsById = new();
 
         public int Count
         {
