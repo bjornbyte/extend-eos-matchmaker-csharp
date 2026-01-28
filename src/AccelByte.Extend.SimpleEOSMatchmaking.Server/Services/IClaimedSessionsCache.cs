@@ -15,31 +15,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// - EOS session state updates are not instantaneous
     /// - Multiple concurrent matches might see the same "available" session
     /// - Local cache provides immediate consistency within the matchmaker
-    /// - Session owner is responsible for updating EOS state to "started"
-    /// 
-    /// DEFAULT IMPLEMENTATION (InMemoryClaimedSessionsCache):
-    /// - Thread-safe in-memory cache using ConcurrentDictionary
-    /// - Tracks sessions with timestamps
-    /// - Automatic expiration after configured time (default: 5 minutes)
-    /// - Suitable for single-instance deployments
-    /// 
-    /// WHEN TO IMPLEMENT DISTRIBUTED CACHE:
-    /// 
-    /// Multi-Instance Deployments:
-    /// - Use Redis with TTL (Time-To-Live) for shared state
-    /// - All matchmaker instances see the same claimed sessions
-    /// - Prevents different instances from claiming the same session
-    /// - Essential for horizontal scaling
-    /// 
-    /// IMPLEMENTATION CONSIDERATIONS:
-    /// - Must support fast lookups (IsSessionClaimed)
-    /// - Must support automatic expiration (TTL or RemoveExpiredEntries)
-    /// - Must be thread-safe for concurrent access
-    /// - Expiration time should match session owner notification timeout
-    /// 
-    /// REDIS EXAMPLE:
-    /// Use Redis SET with EX (expiration) for automatic TTL:
-    /// SET claimed:session:{sessionId} "1" EX 300
+    /// - The Session owner is responsible for updating EOS state to "started"
     /// 
     /// NOT needed when:
     /// - Using "create" mode (matchmaker creates sessions)
@@ -58,10 +34,5 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
         /// Add a session to the claimed cache with expiration
         /// </summary>
         void AddClaimedSession(string sessionId);
-
-        /// <summary>
-        /// Remove expired entries from the cache
-        /// </summary>
-        void RemoveExpiredEntries();
     }
 }
