@@ -165,6 +165,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 
                     var match = new Match(requestsForMatch);
                     
+                    // Now we take the match and get a session for it and notify players before making the next match.
+                    // This means the full match and session creation happens one by one, which could cause queue backups
+                    // at high volume. Parallelizing the session creation and player notification could allow faster throughput.
+                    // However, it's not clear if the EOS SDK supports session creation in parallel, is its primary design
+                    // is for running in a single game client or dedicated server.
                     try
                     {
                         var sessionInfo = await SessionCreator.GetSessionAsync(match);
