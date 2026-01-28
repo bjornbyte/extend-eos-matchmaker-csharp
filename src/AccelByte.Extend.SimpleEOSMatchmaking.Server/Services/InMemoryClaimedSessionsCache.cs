@@ -11,50 +11,43 @@ using Microsoft.Extensions.Logging;
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
 {
     /// <summary>
-    /// In-memory implementation of claimed sessions cache
+    /// In-memory implementation of the claimed sessions cache
     /// </summary>
-    public class InMemoryClaimedSessionsCache : IClaimedSessionsCache
+    public class InMemoryClaimedSessionsCache(
+        ILogger<InMemoryClaimedSessionsCache> logger,
+        EOSSessionFinderConfig config)
+        : IClaimedSessionsCache
     {
-        private readonly ILogger<InMemoryClaimedSessionsCache> _logger;
-        private readonly EOSSessionFinderConfig _config;
-        private readonly ConcurrentDictionary<string, DateTime> _claimedSessions = new();
-
-        public InMemoryClaimedSessionsCache(
-            ILogger<InMemoryClaimedSessionsCache> logger,
-            EOSSessionFinderConfig config)
-        {
-            _logger = logger;
-            _config = config;
-        }
+        private readonly ConcurrentDictionary<string, DateTime> ClaimedSessions = new();
 
         public bool IsSessionClaimed(string sessionId)
         {
             // Remove expired entries before checking
             RemoveExpiredEntries();
             
-            return _claimedSessions.ContainsKey(sessionId);
+            return ClaimedSessions.ContainsKey(sessionId);
         }
 
         public void AddClaimedSession(string sessionId)
         {
-            _claimedSessions[sessionId] = DateTime.UtcNow;
-            _logger.LogDebug("Added session to claimed cache: SessionId={SessionId}", sessionId);
+            ClaimedSessions[sessionId] = DateTime.UtcNow;
+            logger.LogDebug("Added session to claimed cache: SessionId={SessionId}", sessionId);
         }
 
         public void RemoveExpiredEntries()
         {
             var now = DateTime.UtcNow;
-            var expirationTime = TimeSpan.FromSeconds(_config.ClaimedSessionExpirationSeconds);
+            var expirationTime = TimeSpan.FromSeconds(config.ClaimedSessionExpirationSeconds);
             
-            var expiredKeys = _claimedSessions
+            var expiredKeys = ClaimedSessions
                 .Where(kvp => now - kvp.Value > expirationTime)
                 .Select(kvp => kvp.Key)
                 .ToList();
 
             foreach (var key in expiredKeys)
             {
-                _claimedSessions.TryRemove(key, out _);
-                _logger.LogDebug("Removed expired session from claimed cache: SessionId={SessionId}", key);
+                ClaimedSessions.TryRemove(key, out _);
+                logger.LogDebug("Removed expired session from claimed cache: SessionId={SessionId}", key);
             }
         }
     }

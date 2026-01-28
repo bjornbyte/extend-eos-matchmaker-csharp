@@ -31,16 +31,16 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
     /// </summary>
     public class CompletedRequestStore : ICompletedRequestStore
     {
-        private readonly object _lock = new object();
-        private readonly Dictionary<string, MatchRequest> _requestsById = new Dictionary<string, MatchRequest>();
+        private readonly object Lock = new object();
+        private readonly Dictionary<string, MatchRequest> RequestsById = new Dictionary<string, MatchRequest>();
 
         public int Count
         {
             get
             {
-                lock (_lock)
+                lock (Lock)
                 {
-                    return _requestsById.Count;
+                    return RequestsById.Count;
                 }
             }
         }
@@ -50,9 +50,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
 
-            lock (_lock)
+            lock (Lock)
             {
-                _requestsById[request.RequestId] = request;
+                RequestsById[request.RequestId] = request;
             }
         }
 
@@ -61,9 +61,9 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             if (string.IsNullOrEmpty(requestId))
                 return null;
 
-            lock (_lock)
+            lock (Lock)
             {
-                _requestsById.TryGetValue(requestId, out var request);
+                RequestsById.TryGetValue(requestId, out var request);
                 return request;
             }
         }
@@ -73,15 +73,15 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             var expiredRequests = new List<MatchRequest>();
             var cutoffTime = DateTime.UtcNow - retentionPeriod;
 
-            lock (_lock)
+            lock (Lock)
             {
-                var toRemove = _requestsById.Values
+                var toRemove = RequestsById.Values
                     .Where(r => r.CompletedAt.HasValue && r.CompletedAt.Value < cutoffTime)
                     .ToList();
 
                 foreach (var request in toRemove)
                 {
-                    _requestsById.Remove(request.RequestId);
+                    RequestsById.Remove(request.RequestId);
                     expiredRequests.Add(request);
                 }
             }
