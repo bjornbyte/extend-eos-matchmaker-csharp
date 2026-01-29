@@ -61,11 +61,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             logger.LogDebug("Processing claimed session: SessionId={SessionId}, MatchId={MatchId}",
                 sessionId, match.MatchId);
 
-            var connectionInfo = "unknown";
-            if (sessionInfo.Value.Settings != null)
-            {
-                connectionInfo = sessionInfo.Value.SessionId?.ToString() ?? "unknown";
-            }
+            var connectionInfo = sessionInfo.Value.HostAddress.ToString() ?? "unknown";
 
             try
             {
@@ -114,7 +110,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             };
 
             var createSearchResult = sessionsInterface.CreateSessionSearch(ref createSearchOptions, out var sessionSearch);
-            if (createSearchResult != Result.Success || sessionSearch == null)
+            if (createSearchResult != Result.Success)
             {
                 logger.LogError("Failed to create session search: {Result}", createSearchResult);
                 throw new InvalidOperationException($"Failed to create session search: {createSearchResult}");
