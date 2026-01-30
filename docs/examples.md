@@ -1097,6 +1097,8 @@ Configure role requirements in `appsettings.json`:
 
 **Note:** This requires modifying the core MatchMaker class, not implementing an interface.
 
+> **Alternative Approach:** The example below has each party member submit their own match request with a shared `party_id` in metadata, and the matchmaker groups them together. Another approach is to have the **party leader submit a single match ticket** containing all player IDs in the party. In that model, the match ticket itself represents the entire group, and the matchmaker treats it as a unit that occupies multiple slots. The service could validate the party members (e.g., check that they are online, in the correct state, or friends) before accepting the ticket into the queue. The single-ticket approach simplifies cancellation (one ticket to cancel instead of many) and avoids race conditions where some party members' requests expire while others remain pending.
+
 ### Implementation
 
 Modify `Services/MatchMaker.cs` for party-based matching:
