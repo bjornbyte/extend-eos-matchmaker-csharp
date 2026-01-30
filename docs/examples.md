@@ -37,6 +37,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using AccelByte.Extend.SimpleEOSMatchmaking.Server.Model;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
@@ -180,7 +181,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             _logger.LogDebug("Added request {RequestId} to Redis pool", request.RequestId);
         }
 
-        public bool Remove(string requestId)
+        public MatchRequest? Remove(string requestId)
         {
             var db = _redis.GetDatabase();
             var key = $"{_keyPrefix}{requestId}";
@@ -189,11 +190,11 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             // Get request to find user ID
             var json = db.StringGet(key);
             if (json.IsNullOrEmpty)
-                return false;
+                return null;
 
             var request = JsonSerializer.Deserialize<MatchRequest>(json!);
             if (request == null)
-                return false;
+                return null;
 
             var userKey = $"{_keyPrefix}user:{request.UserId}";
 
@@ -203,14 +204,13 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             transaction.KeyDeleteAsync(userKey);
             transaction.ListRemoveAsync(listKey, requestId);
 
-            var success = transaction.Execute();
-            
-            if (success)
+            if (!transaction.Execute())
             {
-                _logger.LogDebug("Removed request {RequestId} from Redis pool", requestId);
+                return null;
             }
 
-            return success;
+            _logger.LogDebug("Removed request {RequestId} from Redis pool", requestId);
+            return request;
         }
 
         public MatchRequest? Get(string requestId)
@@ -237,7 +237,17 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             return Get(requestId!);
         }
 
-        public List<MatchRequest> GetOldest(int count)
+        public int Count
+        {
+            get
+            {
+                var db = _redis.GetDatabase();
+                var listKey = $"{_keyPrefix}list";
+                return (int)db.ListLength(listKey);
+            }
+        }
+
+        public IReadOnlyList<MatchRequest> GetOldest(int count)
         {
             var db = _redis.GetDatabase();
             var listKey = $"{_keyPrefix}list";
@@ -258,7 +268,7 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             return requests.OrderBy(r => r.CreatedAt).ToList();
         }
 
-        public List<MatchRequest> RemoveExpired(TimeSpan timeout)
+        public IReadOnlyList<MatchRequest> RemoveExpired(TimeSpan timeout)
         {
             var db = _redis.GetDatabase();
             var listKey = $"{_keyPrefix}list";
@@ -415,14 +425,14 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
             }
         }
 
-        public void RemoveExpired(TimeSpan retentionPeriod)
+        public IReadOnlyList<MatchRequest> RemoveExpired(TimeSpan retentionPeriod)
         {
             try
             {
                 var cutoffTime = DateTime.UtcNow - retentionPeriod;
 
                 var expiredRequests = _dbContext.CompletedRequests
-                    .Where(r => r.MatchedAt != null && r.MatchedAt < cutoffTime)
+                    .Where(r => r.CompletedAt != null && r.CompletedAt < cutoffTime)
                     .ToList();
 
                 if (expiredRequests.Any())
@@ -434,6 +444,8 @@ namespace AccelByte.Extend.SimpleEOSMatchmaking.Server.Services
                         "Removed {Count} expired requests from database",
                         expiredRequests.Count);
                 }
+
+                return expiredRequests;
             }
             catch (Exception ex)
             {
@@ -507,109 +519,137 @@ Add to your `.csproj`:
 Modify `Services/MatchMaker.cs`:
 
 ```csharp
-private async Task<bool> TryMatchAsync()
+public async Task<IReadOnlyList<Match>> TryMatchAsync()
 {
-    // 1. Remove expired requests
-    var expiredRequests = _matchPool.RemoveExpired(_requestTimeout);
-    foreach (var expired in expiredRequests)
+    var matches = new List<Match>();
+
+    try
     {
-        expired.Status = MatchRequestStatus.Expired;
-        _completedRequestStore.Add(expired);
-        _logger.LogInformation(
-            "Request {RequestId} expired after {Timeout}",
-            expired.RequestId,
-            _requestTimeout);
-    }
-
-    // 2. Get all pending requests
-    var allRequests = _matchPool.GetOldest(1000); // Get large batch for skill matching
-
-    if (allRequests.Count < _matchSize)
-    {
-        _logger.LogDebug(
-            "Not enough requests for match. Pool size: {PoolSize}, Required: {MatchSize}",
-            allRequests.Count,
-            _matchSize);
-        return false;
-    }
-
-    // 3. CUSTOMIZATION: Group by skill brackets
-    var skillBrackets = allRequests
-        .GroupBy(r => GetSkillBracket(r))
-        .OrderBy(g => g.Key); // Match lower skill brackets first
-
-    foreach (var bracket in skillBrackets)
-    {
-        var requests = bracket.OrderBy(r => r.CreatedAt).ToList();
-
-        // Try to create matches within this bracket
-        while (requests.Count >= _matchSize)
+        // 1. Clean up expired completed requests
+        var expiredCompleted = CompletedRequestStore.RemoveExpired(Config.RetentionPeriod);
+        if (expiredCompleted.Count > 0)
         {
-            var matchRequests = requests.Take(_matchSize).ToList();
-            requests = requests.Skip(_matchSize).ToList();
+            Logger.LogInformation("Removed {Count} expired completed requests from retention store", expiredCompleted.Count);
+        }
 
-            // Verify skill compatibility
-            if (!AreSkillsCompatible(matchRequests))
+        // Remove expired requests
+        var expiredRequests = MatchPool.RemoveExpired(Config.RequestTimeout);
+        if (expiredRequests.Count > 0)
+        {
+            Logger.LogInformation("Removed {Count} expired requests", expiredRequests.Count);
+
+            foreach (var expiredRequest in expiredRequests)
             {
-                _logger.LogDebug("Skipping match due to skill incompatibility");
-                continue;
+                expiredRequest.Status = Model.MatchRequestStatus.Expired;
+                expiredRequest.CompletedAt = DateTime.UtcNow;
+                CompletedRequestStore.Add(expiredRequest);
             }
+        }
 
-            // Remove from pool
-            foreach (var req in matchRequests)
+        // 2. Get all pending requests (large batch for skill matching)
+        var allRequests = MatchPool.GetOldest(MatchPool.Count);
+
+        if (allRequests.Count < Config.MatchSize)
+        {
+            Logger.LogDebug(
+                "Not enough requests for match. Pool size: {PoolSize}, Required: {MatchSize}",
+                allRequests.Count,
+                Config.MatchSize);
+            return matches;
+        }
+
+        // 3. CUSTOMIZATION: Group by skill brackets
+        var skillBrackets = allRequests
+            .GroupBy(r => GetSkillBracket(r))
+            .OrderBy(g => g.Key); // Match lower skill brackets first
+
+        foreach (var bracket in skillBrackets)
+        {
+            var requests = bracket.OrderBy(r => r.CreatedAt).ToList();
+
+            // Try to create matches within this bracket
+            while (requests.Count >= Config.MatchSize)
             {
-                _matchPool.Remove(req.RequestId);
-            }
+                var matchRequests = requests.Take(Config.MatchSize).ToList();
+                requests = requests.Skip(Config.MatchSize).ToList();
 
-            // Create match
-            var match = new Match
-            {
-                MatchId = Guid.NewGuid().ToString(),
-                Requests = matchRequests,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            try
-            {
-                // Create session
-                var sessionInfo = await _sessionCreator.GetSessionAsync(match);
-
-                // Update requests
-                foreach (var req in matchRequests)
+                // Verify skill compatibility
+                if (!AreSkillsCompatible(matchRequests))
                 {
-                    req.Status = MatchRequestStatus.Matched;
-                    req.MatchedAt = DateTime.UtcNow;
-                    req.SessionId = sessionInfo.SessionId;
-                    _completedRequestStore.Add(req);
+                    Logger.LogDebug("Skipping match due to skill incompatibility");
+                    continue;
                 }
 
-                // Notify players
-                await _playerNotifier.NotifyMatchAsync(sessionInfo);
-
-                _logger.LogInformation(
-                    "Created match {MatchId} with {PlayerCount} players in skill bracket {Bracket}",
-                    match.MatchId,
-                    matchRequests.Count,
-                    GetSkillBracket(matchRequests[0]));
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to create match {MatchId}", match.MatchId);
-
-                // Return requests to pool
+                // Remove from pool
+                var requestsForMatch = new List<MatchRequest>();
                 foreach (var req in matchRequests)
                 {
-                    _matchPool.Add(req);
+                    var removed = MatchPool.Remove(req.RequestId);
+                    if (removed != null)
+                    {
+                        requestsForMatch.Add(removed);
+                    }
                 }
 
-                return false;
+                if (requestsForMatch.Count != Config.MatchSize)
+                {
+                    Logger.LogWarning("Failed to remove all requests for skill-based match");
+                    foreach (var req in requestsForMatch)
+                    {
+                        MatchPool.Add(req);
+                    }
+                    break;
+                }
+
+                // Create match
+                var match = new Match(requestsForMatch);
+
+                try
+                {
+                    // Create session
+                    var sessionInfo = await SessionProvider.GetSessionAsync(match);
+
+                    // Update requests
+                    foreach (var req in requestsForMatch)
+                    {
+                        req.Status = Model.MatchRequestStatus.Matched;
+                        req.MatchedAt = DateTime.UtcNow;
+                        req.SessionId = sessionInfo.SessionId;
+                        req.CompletedAt = DateTime.UtcNow;
+                        CompletedRequestStore.Add(req);
+                    }
+
+                    // Notify players
+                    await Notifier.NotifyMatchAsync(sessionInfo);
+                    matches.Add(match);
+
+                    Logger.LogInformation(
+                        "Created match {MatchId} with {PlayerCount} players in skill bracket {Bracket}",
+                        match.MatchId,
+                        requestsForMatch.Count,
+                        GetSkillBracket(requestsForMatch[0]));
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to create session for match {MatchId}", match.MatchId);
+
+                    // Return requests to pool
+                    foreach (var req in requestsForMatch)
+                    {
+                        MatchPool.Add(req);
+                    }
+
+                    break;
+                }
             }
         }
     }
+    catch (Exception ex)
+    {
+        Logger.LogError(ex, "Error in TryMatchAsync");
+    }
 
-    return false;
+    return matches;
 }
 
 // Helper: Extract MMR from metadata and determine bracket
@@ -719,7 +759,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
         }
 
         // CUSTOMIZATION: Group requests by region
-        var allRequests = MatchPool.GetAll();
+        var allRequests = MatchPool.GetOldest(MatchPool.Count);
         var regionGroups = allRequests
             .GroupBy(r => GetRegion(r))
             .OrderByDescending(g => g.Count()); // Prioritize regions with more players
@@ -760,7 +800,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
                 
                 try
                 {
-                    var sessionInfo = await SessionCreator.GetSessionAsync(match);
+                    var sessionInfo = await SessionProvider.GetSessionAsync(match);
 
                     foreach (var request in requestsForMatch)
                     {
@@ -904,7 +944,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
         }
 
         // CUSTOMIZATION: Group requests by role
-        var allRequests = MatchPool.GetAll();
+        var allRequests = MatchPool.GetOldest(MatchPool.Count);
         var tanks = allRequests.Where(r => GetRole(r) == "tank").OrderBy(r => r.CreatedAt).ToList();
         var healers = allRequests.Where(r => GetRole(r) == "healer").OrderBy(r => r.CreatedAt).ToList();
         var dps = allRequests.Where(r => GetRole(r) == "dps").OrderBy(r => r.CreatedAt).ToList();
@@ -952,7 +992,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
             
             try
             {
-                var sessionInfo = await SessionCreator.GetSessionAsync(match);
+                var sessionInfo = await SessionProvider.GetSessionAsync(match);
 
                 foreach (var request in removedRequests)
                 {
@@ -970,7 +1010,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
                 await Notifier.NotifyMatchAsync(sessionInfo);
                 matches.Add(match);
 
-                var roleComposition = string.Join(", ", 
+                var roleComposition = string.Join(", ",
                     removedRequests.GroupBy(r => GetRole(r))
                         .Select(g => $"{g.Count()} {g.Key}"));
 
@@ -1089,7 +1129,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
         }
 
         // CUSTOMIZATION: Group requests by party
-        var allRequests = MatchPool.GetAll();
+        var allRequests = MatchPool.GetOldest(MatchPool.Count);
         var parties = allRequests
             .GroupBy(r => GetPartyId(r))
             .Select(g => new Party
@@ -1162,7 +1202,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
             
             try
             {
-                var sessionInfo = await SessionCreator.GetSessionAsync(match);
+                var sessionInfo = await SessionProvider.GetSessionAsync(match);
 
                 foreach (var request in removedRequests)
                 {
@@ -1180,7 +1220,7 @@ public async Task<IReadOnlyList<Match>> TryMatchAsync()
                 await Notifier.NotifyMatchAsync(sessionInfo);
                 matches.Add(match);
 
-                var partyInfo = string.Join(", ", 
+                var partyInfo = string.Join(", ",
                     partiesInMatch.Select(p => $"Party {p.PartyId} ({p.Size} players)"));
 
                 Logger.LogInformation(
@@ -1253,10 +1293,10 @@ Add validation to prevent oversized parties:
 // In match submission endpoint
 if (request.Metadata?.TryGetValue("party_id", out var partyId) == true)
 {
-    var partySize = _matchPool.GetAll()
+    var partySize = MatchPool.GetOldest(MatchPool.Count)
         .Count(r => r.Metadata?.GetValueOrDefault("party_id") == partyId);
-    
-    if (partySize >= _config.MatchSize)
+
+    if (partySize >= Config.MatchSize)
     {
         return BadRequest("Party is full");
     }
