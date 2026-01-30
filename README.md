@@ -24,6 +24,7 @@ This repository provides a simple matchmaking service implemented as an `Extend 
 - **[Architecture Guide](docs/architecture.md)** - Technical design, components, and extensibility
 - **[Operations Guide](docs/operations.md)** - Testing, monitoring, and troubleshooting
 - **[Testing Guide](docs/testing_guide.md)** - Manual testing procedures
+- **[Examples](docs/examples.md)** - Implementation examples for extension points and custom matching
 - **[Dev Container Guide](docs/devcontainer.md)** - Using Dev Containers and GitHub Codespaces
 
 ## Key Features
